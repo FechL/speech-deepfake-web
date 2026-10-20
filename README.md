@@ -8,11 +8,14 @@ Dari root `speech-deepfake-glottal`:
 
 ```bash
 python -m venv web-app/.venv
-web-app/.venv/bin/pip install -r web-app/requirements.txt
+web-app/.venv/bin/pip install -r web-app/requirements-model.txt
+python web-app/backend/setup_local.py
 web-app/.venv/bin/uvicorn backend.app:app --app-dir web-app --host 127.0.0.1 --port 8000
 ```
 
-Buka http://127.0.0.1:8000. Backend menyajikan frontend dan API dari origin yang sama. Tanpa registry, analisis browser dan evaluasi CSV tetap berfungsi; tidak ada prediksi REAL/FAKE.
+Buka http://127.0.0.1:8000. Backend menyajikan frontend dan API dari origin yang sama. Setup lokal mendaftarkan 8 model LR v5 seed 2026 (MFCC, LFCC, G0–G3, MFCC+G3, LFCC+G3) dan 9 hasil evaluasi asli dari tiga seed dan tiga skenario. Bobot tetap di folder results; tidak disalin ke hosting. Pilih **Muat hasil asli** pada halaman Evaluasi & metrik untuk membaca skor lokal.
+
+Tanpa registry, analisis browser dan evaluasi CSV tetap berfungsi; tidak ada prediksi REAL/FAKE.
 
 Preview frontend mandiri: `npm --prefix web-app run dev` (port 5173). Tidak memerlukan node_modules atau build. Frontend juga diterbitkan privat melalui Sites; backend Python tetap harus di-host terpisah untuk inferensi dari halaman HTTPS.
 
@@ -28,7 +31,7 @@ Preview frontend mandiri: `npm --prefix web-app run dev` (port 5173). Tidak meme
 
 ## Mendaftarkan model terlatih v4/v5
 
-**Bobot terlatih belum tersedia di checkout ini dan tidak disertakan repo referensi.** Tidak ada klaim akurasi riil sebelum skor evaluasi asli dimuat. Model ONNX/Torch memerlukan adapter khusus; API saat ini mendukung dictionary spesifikasi Joblib v4/v5 proyek lokal.
+**Repo referensi tidak menyertakan bobot.** Checkout lokal memiliki bundle riset v4/v5 dalam folder results yang diabaikan Git. Setup lokal memakai run v5 `2b3a5cec0fa4dcd9`; skor asli dimuat dari backend, tidak diunggah ke hosting. Scope subset, retained/excluded, seed, run ID dan checksum sumber masuk laporan. Model ONNX/Torch memerlukan adapter khusus; API saat ini mendukung dictionary spesifikasi Joblib v4/v5 proyek lokal.
 
 Gunakan bundle model terlatih yang dipercaya dan **konfigurasi ekstraksi persis dari training**. Versi library harus cocok dengan lingkungan training; gunakan lock environment training untuk model lama. Jangan memuat file Joblib dari unggahan pengguna atau sumber tidak dipercaya karena format ini mengeksekusi kode Python.
 
@@ -57,7 +60,7 @@ real_001,0,0.20,LFCC_LR,test_set,0.5,2026
 fake_001,1,0.80,LFCC_LR,test_set,0.5,2026
 ```
 
-`seed` opsional; semua kolom lain wajib. Skor finite dan lebih tinggi berarti FAKE. Label hanya 0/1; threshold wajib tetap dalam grup, ditetapkan di train/dev, **bukan dipilih ulang di test**. sample_id harus unik per dataset/model/seed. Maksimum 10 MB / 50.000 baris. Dataset dan seed tidak digabung otomatis. Nilai undefined ditampilkan `—` dan diekspor `null`/kosong. EER dihitung dengan interpolasi linear titik ROC saat FPR=FNR. Precision–recall memakai titik threshold empiris; AP memakai integral stepwise. Belum mendukung CI bootstrap, uji signifikansi, atau t-DCF (memerlukan skor sistem ASV dan cost protocol).
+`seed` opsional; semua kolom lain wajib. Skor finite dan lebih tinggi berarti FAKE. Label hanya 0/1; threshold wajib tetap dalam grup, ditetapkan di train/dev, **bukan dipilih ulang di test**. sample_id harus unik per dataset/model/seed. Maksimum 10 MB / 100.000 baris. Dataset dan seed tidak digabung otomatis. Nilai undefined ditampilkan `—` dan diekspor `null`/kosong. EER dihitung dengan interpolasi linear titik ROC saat FPR=FNR. Precision–recall memakai titik threshold empiris; AP memakai integral stepwise. Backend juga membaca skor long-format v5 langsung melalui registry; perbandingan utama mempertahankan classifier LR. Belum mendukung CI bootstrap, uji signifikansi, atau t-DCF (memerlukan skor sistem ASV dan cost protocol).
 
 ## Perbedaan jalur ekstraksi
 
@@ -67,7 +70,7 @@ Python: ekstraktor lengkap v4 dengan filter Mel librosa, window seleksi aktif, n
 
 ## API & deployment
 
-- `GET /api/health`, `GET /api/models`, `POST /api/infer` (multipart: `audio`, `model_ids` JSON array 1–8 ID).
+- `GET /api/health`, `GET /api/models`, `GET /api/evaluations/{id}`, `POST /api/infer` (multipart: `audio`, `model_ids` JSON array 1–8 ID).
 - Backend default bind loopback. Satu inferensi aktif; request lain menerima 429. Ekstraksi berjalan di thread agar API responsif.
 - CORS dibatasi origin lokal dan URL Sites ini; override lewat `DEEPGUARD_ORIGINS` dipisahkan koma. CORS bukan autentikasi. Untuk host remote, tambahkan HTTPS, autentikasi, request-body limit dan rate limit di reverse proxy; jangan expose API tanpa kontrol akses.
 - Halaman HTTPS memerlukan backend HTTPS yang terjangkau. Menjalankan backend lokal dan membuka localhost adalah cara termudah memakai model lokal. Hosting Sites ini hanya memuat frontend; model Python tidak dijalankan dalam Cloudflare Worker.
@@ -82,3 +85,5 @@ web-app/.venv/bin/python -m pytest web-app/tests/test_api.py -q
 ```
 
 Test JS meliputi ranking sempurna/terbalik/ties, metrik single-class, parsing/validasi CSV, threshold, alignment sampel berpasangan, FFT, RMS dan pitch sinyal 140 Hz. Test API mencakup validasi input, inferensi adapter model fixture sintetis (bukan model produksi), dan checksum. Browser QA: pemuatan sinyal contoh, analisis fitur, evaluasi sintetis dan navigasi.
+
+Hasil verifikasi implementasi: 9 test JavaScript, 6 test API; 58.368 skor asli seed 2026 / internal LA dicocokkan dengan `metrics_main.csv` untuk AUC, accuracy, balanced accuracy, F1 dan MCC dengan toleransi 1e-10. Inferensi bundle nyata juga diuji pada MP3 demo 60 detik untuk MFCC/LFCC/G3; semua paket yang dicatat training dan hash source ekstraktor cocok. Hasil model pada demo bukan validasi generalisasi atau jaminan label benar.

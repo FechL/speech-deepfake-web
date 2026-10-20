@@ -19,10 +19,11 @@ client=TestClient(a.app)
 def wav(seconds=1):
     b=io.BytesIO();sf.write(b,.3*np.sin(2*np.pi*140*np.arange(int(seconds*16000))/16000),16000,format='WAV');return b.getvalue()
 
-def test_no_models(monkeypatch):
-    monkeypatch.delenv('DEEPGUARD_REGISTRY',raising=False)
+def test_no_models(monkeypatch,tmp_path):
+    empty=tmp_path/'empty.json';empty.write_text('{"models": []}')
+    monkeypatch.setenv('DEEPGUARD_REGISTRY',str(empty))
     assert client.get('/api/health').json()['model_count']==0
-    assert client.get('/api/models').json()=={'models':[]}
+    assert client.get('/api/models').json()=={'models':[],'evaluations':[]}
     assert client.get('/').status_code==200
     for ids in ['[]','["missing"]','{}','null']:
         assert client.post('/api/infer',files={'audio':('a.wav',wav())},data={'model_ids':ids}).status_code==422
@@ -81,3 +82,13 @@ def test_real_extractor_and_model_adapter(tmp_path,monkeypatch):
     bad=client.post('/api/infer',files={'audio':('tone.wav',blob)},data={'model_ids':'["fixture"]'})
     assert bad.status_code==422
     assert 'Checksum' in bad.json()['detail']
+
+def test_evaluation_scope_retention_and_allowlist(tmp_path,monkeypatch):
+    scores=tmp_path/'scores.csv'
+    scores.write_text('key,utterance_id,label,score,threshold,dataset,scenario,seed,retained,scope\nMFCC@lr,a,0,.1,.5,test,eval,1,True,subset\nMFCC@lr,b,1,.8,.5,test,eval,1,False,subset\nLFCC@lr,a,0,.2,.5,test,eval,1,True,subset\n')
+    reg=tmp_path/'registry.json';reg.write_text(json.dumps({'models':[],'evaluations':[dict(id='e',title='Eval fixture',path=str(scores),model_keys=['MFCC@lr'],run_id='r')]}));monkeypatch.setenv('DEEPGUARD_REGISTRY',str(reg))
+    result=client.get('/api/evaluations/e');assert result.status_code==200
+    data=result.json();assert len(data['rows'])==1;assert data['rows'][0]['sample_id']=='a'
+    assert data['scopes']==['subset'];assert data['excluded']=={'MFCC@lr':1}
+    assert data['source_sha256']==hashlib.sha256(scores.read_bytes()).hexdigest()
+    assert client.get('/api/evaluations/unknown').status_code==404
