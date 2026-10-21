@@ -104,6 +104,8 @@ def test_sibling_layout_and_residual_availability():
     assert len(residual)==10
     assert next(e for e in residual if e['key']=='E4a')['family']=='residual'
     assert next(e for e in residual if e['key']=='B0')['family']=='mfcc'
+    assert all(e['available'] for e in residual)
+    assert all(e['feature_count']>0 for e in residual)
     assert {e['id'] for e in config['evaluations']} >= {'residual_external_standard','residual_external_reported'}
 
 
@@ -126,6 +128,9 @@ def test_residual_external_threshold_policies():
     assert {r['threshold'] for r in standard['rows']}=={.5}
     assert standard['threshold_policy']=='standard_probability_0.5'
     assert reported['threshold_policy']=='source_reported_unverified_selection'
+    frozen=load_evaluation(entries['residual_external_validation'],Path(entries['residual_external_validation']['path']))
+    assert frozen['threshold_policy']=='train_dev_frozen'
+    assert next(r for r in frozen['rows'] if r['model']=='Residual / E4a')['threshold']==pytest.approx(.40278870661289634)
     assert next(r for r in reported['rows'] if r['model']=='Residual / E4a')['threshold']==.65
 
 
@@ -167,3 +172,28 @@ def test_residual_original_extraction_and_checkpoint(tmp_path,monkeypatch):
     assert result['predictions'][0]['score']==pytest.approx(expected)
     bad=dict(entry,source_hashes={'audio_io.py':'bad'})
     with pytest.raises(ValueError,match='Source residual berubah'):extract_residual(raw,sr,bad)
+
+def test_user_ground_truth_is_metadata_not_model_input(tmp_path,monkeypatch):
+    import copy
+    reg=tmp_path/'registry.json';reg.write_text(json.dumps({'models':[dict(id='m',path='fixture.joblib',sha256='x',key='m',features={},family='MFCC',kind='lr')]}));monkeypatch.setenv('DEEPGUARD_REGISTRY',str(reg))
+    calls=[]
+    def fake_infer(raw,sr,entries):
+        calls.append((raw.copy(),sr,copy.deepcopy(entries)))
+        return {'predictions':[dict(model_id='m',status='ok',prediction='FAKE',score=.8,threshold=.5),dict(model_id='gate',status='abstained',reason='short')],'features':[]}
+    monkeypatch.setattr(a,'infer',fake_infer)
+    responses=[]
+    for label in [None,0,1]:
+        data={'model_ids':'["m"]'}
+        if label is not None:data['ground_truth']=str(label)
+        response=client.post('/api/infer',files={'audio':('same.wav',wav())},data=data)
+        assert response.status_code==200,response.text
+        result=response.json();responses.append(result)
+        assert result['ground_truth']==label
+        assert result['ground_truth_source']==('user_provided' if label is not None else None)
+        assert result['predictions'][1]['correct'] is None
+    assert [r['predictions'][0]['correct'] for r in responses]==[None,False,True]
+    assert [r['predictions'][0]['score'] for r in responses]==[.8,.8,.8]
+    assert all(np.array_equal(call[0],calls[0][0]) and call[1:]==calls[0][1:] for call in calls)
+    bad=client.post('/api/infer',files={'audio':('a.wav',wav())},data={'model_ids':'["m"]','ground_truth':'2'})
+    assert bad.status_code==422
+    assert len(calls)==3

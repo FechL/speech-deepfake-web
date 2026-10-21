@@ -45,10 +45,11 @@ Source utama: `skripsi_residual_modulasi/src/train_baseline.py` dan `configs/bas
 | E4d | Residual + modulasi | Random Forest | 22 |
 | E4e | Residual + modulasi | XGBoost | 22 |
 
-**Pada pemeriksaan 21 Oktober 2026, checkpoint residual belum ada di checkout ini**, meskipun dokumentasi audit lama menyebutnya tersedia. UI tetap menampilkan kesepuluh model dengan status bobot belum tersedia dan checkbox nonaktif. Tidak ada prediksi buatan atau fallback ke model glotal.
+Sepuluh checkpoint residual kini tersedia di `speech-deepfake-residual-modulation/models_checkpoints/`. Metadata ID, keluarga fitur, classifier, seed, kelas dan threshold validation telah diperiksa. UI mengaktifkan model yang bobotnya ditemukan; file yang hilang tetap ditandai tidak tersedia. Tidak ada fallback ke model glotal.
 
 Letakkan checkpoint dipercaya `{ID}_seed42.joblib` di salah satu folder:
 
+- `speech-deepfake-residual-modulation/models_checkpoints/` (prioritas pertama)
 - `speech-deepfake-residual-modulation/skripsi_residual_modulasi/checkpoints/`
 - `speech-deepfake-residual-modulation/web_cek/model/`
 
@@ -68,10 +69,11 @@ Joblib hanya boleh berasal dari operator/sumber dipercaya karena dapat mengeksek
 
 ## Evaluasi residual yang sudah tersedia
 
-Backend membaca `hasil_validasi/validation_external_predictions.csv`: 272 segmen, sepuluh model, total 2.720 skor. Dua opsi evaluasi tersedia:
+Backend membaca `hasil_validasi/validation_external_predictions.csv`: 272 segmen, sepuluh model, total 2.720 skor. Tiga opsi evaluasi tersedia:
 
-1. **Standar 0.5**: cutoff probabilitas standar, bukan threshold validation checkpoint.
-2. **Threshold laporan sumber**: memakai `calibrated_thresh` pada `validation_external_metrics.csv`; asal pemilihannya belum diverifikasi. Istilah tersebut tidak membuktikan probabilitas terkalibrasi. Threshold ini **tidak** dipakai untuk inferensi.
+1. **Validation checkpoint**: memakai `val_threshold` dari sepuluh checkpoint asli seed 42; tidak dituning pada data eksternal.
+2. **Standar 0.5**: cutoff probabilitas standar, bukan threshold validation checkpoint.
+3. **Threshold laporan sumber**: memakai `calibrated_thresh` pada `validation_external_metrics.csv`; asal pemilihannya belum diverifikasi. Istilah tersebut tidak membuktikan probabilitas terkalibrasi. Threshold ini **tidak** dipakai untuk inferensi.
 
 Metrik dihitung ulang dari CSV probabilitas yang dibulatkan empat desimal; ringkasan metrik sumber tidak disalin sebagai hasil hitung. EER webapp menggunakan interpolasi ROC. Selisih EER dengan ringkasan sumber belum diaudit sepenuhnya dan tidak diasumsikan hanya akibat pembulatan. Identitas sampel memakai `rel_path` yang dinormalisasi, bukan basename. Dataset residual tidak digabung dengan populasi evaluasi glotal dan tidak diberi peringkat lintas dataset. Sumber, scope, policy threshold, pengecualian dan SHA-256 masuk laporan JSON.
 
@@ -100,4 +102,26 @@ npm test
 .venv/bin/python -m pytest tests/test_api.py -q
 ```
 
-Pengujian mencakup metrik/CSV/FFT, path repo saudara, inferensi glotal, adapter checkpoint residual dengan fixture sintetis, ekstraktor residual asli, isolasi import, checkpoint hilang, checksum, dan kedua kebijakan threshold evaluasi residual. Fixture sintetis tidak menggantikan pengujian bobot produksi residual yang belum tersedia.
+Pengujian mencakup metrik/CSV/FFT, path repo saudara, inferensi glotal, adapter checkpoint residual dengan fixture sintetis, ekstraktor residual asli, isolasi import, checkpoint hilang, checksum, dan kedua kebijakan threshold evaluasi residual. Selain fixture sintetis, lakukan smoke test inferensi pada semua checkpoint asli setelah bobot ditambahkan atau diganti. Checkpoint XGBoost lama dapat mengeluarkan peringatan serialisasi; kecocokan numerik dengan environment training perlu diverifikasi terpisah.
+
+Checkpoint asli B0–B4/E4a–E4e telah lulus smoke test inferensi bersama delapan model glotal (18 model, cuplikan speech 4 detik). B4 memunculkan peringatan serialisasi XGBoost lama; peringatan ditampilkan bersama prediksi. Tidak ada bobot asli yang dikonversi atau ditimpa.
+
+## Unggah berlabel dan analisis batch (lokal)
+
+Halaman **Analisis batch** menerima banyak file sekaligus, drag/drop, atau folder audio (sesuai dukungan browser). Maksimum 100 file dalam antrean, 25 MB dan 60 detik per file. Pilih model pada halaman **Analisis audio**; daftar ID model disalin saat run dimulai.
+
+Untuk data campuran:
+
+1. Aktifkan **label untuk file yang ditambahkan**, pilih **REAL**, lalu tambahkan file REAL.
+2. Ganti pilihan menjadi **FAKE**, lalu tambahkan file FAKE. Label file REAL sebelumnya tetap REAL.
+3. Periksa/edit label setiap baris antrean, lalu klik **Jalankan / lanjutkan batch**.
+
+Label tidak pernah diambil otomatis dari nama file/folder dan tidak menjadi input classifier. Label opsional: tanpa label, prediksi tetap berjalan, tetapi file tidak masuk metrik akurasi/AUC/F1. Pada halaman unggah tunggal juga tersedia checkbox label ground truth dan pilihan REAL/FAKE. Mengubah label unggah tunggal membersihkan hasil sebelumnya agar analisis berikutnya memakai metadata label terbaru.
+
+Batch memakai POST `/api/infer` berurutan per file, dengan `model_ids` dan field opsional `ground_truth` (`0` REAL, `1` FAKE). API menolak label di luar 0/1, mengembalikan label sebagai metadata, dan menambahkan `correct` pada prediksi; nilainya `null` untuk abstain/tanpa label. Label tidak dikirim ke fungsi ekstraksi/skoring. Kesalahan satu file dicatat dan batch melanjutkan file berikutnya. Tombol berhenti menunggu request aktif selesai; file yang masih menunggu dapat dilanjutkan. Tombol ulangi mengantrekan kembali file gagal. Mengubah label antrean setelah run membersihkan hasil file itu dan mengantrekannya ulang.
+
+Ringkasan per model mencakup jumlah file dicoba, berprediksi, abstain, error, coverage keseluruhan serta REAL/FAKE, jumlah skor berlabel, accuracy pada sampel lolos, balanced accuracy, AUC dan F1 FAKE. Denominator coverage hanya file yang sudah dicoba pada model tersebut; file pending tidak dimasukkan. File tanpa label ikut coverage keseluruhan tetapi tidak coverage per kelas atau metrik berlabel. Jika hanya satu kelas lolos, AUC/balanced accuracy tidak dihitung. Jika threshold berbeda antarrun, metrik gabungan diblokir; gunakan antrean baru. Abstain tidak diganti menjadi REAL/FAKE dan tidak disembunyikan dari coverage. Aturan trim/jendela glotal tidak berubah.
+
+Hasil tiap file/model bisa difilter dan diekspor sebagai **JSON** / **CSV** (termasuk label, status, skor, threshold, kesesuaian, alasan, SHA-256). Tombol **Buka skor berlabel di Evaluasi** menampilkan ROC/confusion matrix untuk skor yang lolos; provenance tetap mencatat coverage dan pengecualian. Laporan sesi JSON juga menyertakan seluruh ringkasan batch. Sesi/antrean hilang ketika halaman dimuat ulang; ekspor sebelum menutup halaman. Audio tetap di perangkat sampai request lokal per file dikirim dan tidak disimpan sebagai dataset oleh backend.
+
+Setelah memperbarui kode, restart backend dan muat ulang browser agar field label baru dikenali server.

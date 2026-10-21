@@ -5,3 +5,4 @@ __pycache__/
 .env
 .openai/*.tar.gz
 models/
+data-test

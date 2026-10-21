@@ -104,7 +104,7 @@ def infer(raw, sr, entries):
             else:raise ValueError('Pipeline tidak didukung: '+pipeline)
             features[config_key]['_pipeline']=pipeline
         feat = features[config_key]
-        base = dict(model_id=entry['id'], family=entry['family'], kind=entry['kind'], dataset=entry.get('dataset'), seed=entry.get('seed'),pipeline=pipeline)
+        base = dict(model_id=entry['id'], family=entry['family'], kind=entry['kind'], dataset=entry.get('dataset'), seed=entry.get('seed'),pipeline=pipeline,warnings=entry.get('load_warnings',[]))
         if not feat.get('n_segments' if pipeline=='residual_modulation' else 'n_windows'):
             results.append(dict(base, status='abstained', reason='Tidak ada jendela audio aktif yang memenuhi konfigurasi model.')); continue
         path=Path(entry['path'])
@@ -133,7 +133,9 @@ def infer(raw, sr, entries):
 
 
 @app.post('/api/infer')
-async def inference(audio: UploadFile = File(...), model_ids: str = Form(...)):
+async def inference(audio: UploadFile = File(...), model_ids: str = Form(...), ground_truth: int | None = Form(None)):
+    if ground_truth is not None and ground_truth not in (0,1):
+        raise HTTPException(422,'Label ground truth harus REAL=0 atau FAKE=1.')
     blob=await audio.read(MAX_BYTES+1)
     if len(blob)>MAX_BYTES: raise HTTPException(413, 'Ukuran maksimum 25 MB.')
     try:
@@ -153,7 +155,9 @@ async def inference(audio: UploadFile = File(...), model_ids: str = Form(...)):
     try:
         from starlette.concurrency import run_in_threadpool
         result=await run_in_threadpool(infer,raw,sr,[available[x] for x in requested])
-        return dict(result,audio_sha256=hashlib.sha256(blob).hexdigest(),original_sample_rate=sr,duration=len(raw)/sr)
+        for prediction in result['predictions']:
+            prediction['correct']=(prediction['prediction']==('FAKE' if ground_truth==1 else 'REAL')) if ground_truth is not None and prediction['status']=='ok' else None
+        return dict(result,ground_truth=ground_truth,ground_truth_source='user_provided' if ground_truth is not None else None,audio_sha256=hashlib.sha256(blob).hexdigest(),original_sample_rate=sr,duration=len(raw)/sr)
     except (ValueError, KeyError, OSError, RuntimeError) as exc: raise HTTPException(422,str(exc))
     finally: LOCK.release()
 
