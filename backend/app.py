@@ -16,8 +16,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import soundfile as sf
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT))
+from backend.paths import WEB_ROOT, GLOTTAL_ROOT
+from backend.residual import extract_residual, residual_score
+ROOT = GLOTTAL_ROOT  # Compatibility for callers that locate the research config.
+sys.path.insert(0, str(GLOTTAL_ROOT))
 app = FastAPI(title='DeepGuard Audio Lab', version='1.0.0')
 origins = [x.strip() for x in os.getenv('DEEPGUARD_ORIGINS', 'http://127.0.0.1:5173,http://localhost:5173,https://deepguard-audio-lab-aliy.silly-elf-5047.chatgpt.site').split(',') if x.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=['GET', 'POST'], allow_headers=['Content-Type'])
@@ -35,7 +37,7 @@ def clean(value):
 
 def configuration():
     path = os.getenv('DEEPGUARD_REGISTRY')
-    p = Path(path).expanduser().resolve() if path else ROOT/'web-app/models/registry.json'
+    p = Path(path).expanduser().resolve() if path else WEB_ROOT/'models/registry.json'
     return (json.loads(p.read_text()), p) if p.exists() else ({'models': [], 'evaluations': []}, p)
 
 def registry():
@@ -55,14 +57,14 @@ def health():
         entries = registry()
     except (ValueError, OSError, KeyError):
         raise HTTPException(503, 'Registry tidak valid. Periksa konfigurasi operator.')
-    return {'status': 'ok', 'model_count': len(entries), 'extractor': 'pipeline_v4.extract_audio_v4', 'max_seconds': 60, 'max_bytes': MAX_BYTES}
+    return {'status': 'ok', 'model_count': len(entries), 'extractor': 'glottal_v4 + residual_modulation', 'available_model_count': sum(e.get('available',True) for e in entries), 'max_seconds': 60, 'max_bytes': MAX_BYTES}
 
 
 @app.get('/api/models')
 def models():
     try: entries = registry()
     except (ValueError, OSError, KeyError): raise HTTPException(503, 'Registry tidak valid.')
-    return {'models': [{k: e.get(k) for k in ['id','family','kind','dataset','seed','description']} for e in entries], 'evaluations': [{k:e[k] for k in ['id','title']} for e in configuration()[0].get('evaluations',[])]}
+    return {'models': [{k: e.get(k) for k in ['id','family','kind','dataset','seed','description','pipeline','available','unavailable_reason']} for e in entries], 'evaluations': [{k:e[k] for k in ['id','title']} for e in configuration()[0].get('evaluations',[])]}
 
 
 def score_spec(spec, frame):
@@ -82,7 +84,6 @@ def score_spec(spec, frame):
 def infer(raw, sr, entries):
     import joblib
     import pandas as pd
-    from src.pipeline_v4.features import extract_audio_v4
     results=[]; features={}; bundles={}; environment={}
     for entry in entries:
         for package, expected in entry.get('packages',{}).items():
@@ -92,11 +93,19 @@ def infer(raw, sr, entries):
                 raise ValueError(f'Versi {package} harus {expected}; runtime {actual}. Pasang requirements-model.txt.')
         if entry.get('feature_hash') and hashlib.sha256((ROOT/'src/pipeline_v4/features.py').read_bytes()).hexdigest()!=entry['feature_hash']:
             raise ValueError('Source ekstraktor berbeda dari training bundle.')
-        config_key = json.dumps(entry['features'], sort_keys=True)
-        if config_key not in features: features[config_key] = extract_audio_v4(raw, sr, entry['features'])
+        pipeline=entry.get('pipeline','glottal_v4')
+        config_key = json.dumps([pipeline,entry['features'],entry.get('source_dir'),entry.get('lpc_order')], sort_keys=True)
+        if config_key not in features:
+            if pipeline=='residual_modulation':
+                features[config_key]=extract_residual(raw,sr,entry)
+            elif pipeline=='glottal_v4':
+                from src.pipeline_v4.features import extract_audio_v4
+                features[config_key]=extract_audio_v4(raw,sr,entry['features'])
+            else:raise ValueError('Pipeline tidak didukung: '+pipeline)
+            features[config_key]['_pipeline']=pipeline
         feat = features[config_key]
-        base = dict(model_id=entry['id'], family=entry['family'], kind=entry['kind'], dataset=entry.get('dataset'), seed=entry.get('seed'))
-        if not feat['n_windows']:
+        base = dict(model_id=entry['id'], family=entry['family'], kind=entry['kind'], dataset=entry.get('dataset'), seed=entry.get('seed'),pipeline=pipeline)
+        if not feat.get('n_segments' if pipeline=='residual_modulation' else 'n_windows'):
             results.append(dict(base, status='abstained', reason='Tidak ada jendela audio aktif yang memenuhi konfigurasi model.')); continue
         path=Path(entry['path'])
         if hashlib.sha256(path.read_bytes()).hexdigest() != entry['sha256']: raise ValueError('Checksum model berbeda dari registry.')
@@ -104,6 +113,10 @@ def infer(raw, sr, entries):
         if selected is None:
             selected=joblib.load(path)  # Trusted local operator input only; never a user upload.
             bundles[str(path)]=selected
+        if pipeline=='residual_modulation':
+            scored=residual_score(selected,feat,entry)
+            results.append(dict(base,status='ok',**scored,prediction='FAKE' if scored['score']>=scored['threshold'] else 'REAL',model_sha256=entry['sha256']))
+            continue
         spec=selected[entry['key']]
         if spec.get('family') != entry['family'] or spec.get('kind') != entry['kind']: raise ValueError('Metadata model berbeda dari registry.')
         if not np.isfinite(float(spec['threshold'])): raise ValueError('Threshold model tidak valid.')
@@ -125,9 +138,11 @@ async def inference(audio: UploadFile = File(...), model_ids: str = Form(...)):
     if len(blob)>MAX_BYTES: raise HTTPException(413, 'Ukuran maksimum 25 MB.')
     try:
         requested=json.loads(model_ids)
-        if not isinstance(requested,list) or not requested or len(requested)>8 or any(not isinstance(x,str) for x in requested) or len(set(requested))!=len(requested): raise ValueError('Pilih 1–8 ID model unik.')
+        if not isinstance(requested,list) or not requested or len(requested)>18 or any(not isinstance(x,str) for x in requested) or len(set(requested))!=len(requested): raise ValueError('Pilih 1–18 ID model unik.')
         available={e['id']:e for e in registry()}
         if set(requested)-set(available): raise ValueError('Model tidak terdaftar.')
+        unavailable=[key for key in requested if not available[key].get('available',True)]
+        if unavailable:raise ValueError('Bobot model belum tersedia: '+', '.join(unavailable))
         with sf.SoundFile(io.BytesIO(blob)) as source:
             if source.samplerate < 8000 or source.samplerate > 192000 or source.channels>8: raise ValueError('Format audio tidak didukung.')
             if not .1 <= source.frames/source.samplerate <= 60: raise ValueError('Durasi audio harus 0,1–60 detik.')
@@ -151,18 +166,8 @@ def evaluation(evaluation_id: str):
     choices={e['id']:e for e in config.get('evaluations',[])}
     if evaluation_id not in choices: raise HTTPException(404, 'Evaluasi tidak terdaftar.')
     e=choices[evaluation_id];path=(p.parent/e['path']).resolve()
-    rows=[];excluded={};scopes=set()
-    with path.open() as handle:
-        for row in csv.DictReader(handle):
-            key=row['key']
-            if key not in e['model_keys']: continue
-            scopes.add(row.get('scope','unspecified'))
-            if row.get('retained','True').lower()!='true':
-                excluded[key]=excluded.get(key,0)+1;continue
-            score=float(row['score']);threshold=float(row['threshold'])
-            if not math.isfinite(score) or not math.isfinite(threshold): raise HTTPException(422,'Skor evaluasi tidak finite.')
-            rows.append(dict(sample_id=row['utterance_id'],label=int(row['label']),score=score,model=key,dataset=row['dataset']+' / '+row['scenario'],threshold=threshold,seed=row['seed'],speaker_id=row.get('speaker_id'),attack_id=row.get('attack_id'),scope=row.get('scope')))
-    return {'rows':rows,'title':e['title'],'run_id':e.get('run_id'),'scopes':sorted(scopes),'excluded':excluded,'source_sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'note':'Evaluasi retained samples; scope dan pengecualian harus dilaporkan. Model LR dipertahankan sama untuk perbandingan fitur.'}
+    from backend.evaluations import load_evaluation
+    return load_evaluation(e,path)
 
 
-app.mount('/', StaticFiles(directory=Path(__file__).resolve().parents[1]/'dist', html=True), name='web')
+app.mount('/', StaticFiles(directory=WEB_ROOT/'dist', html=True), name='web')

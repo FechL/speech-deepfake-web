@@ -92,3 +92,78 @@ def test_evaluation_scope_retention_and_allowlist(tmp_path,monkeypatch):
     assert data['scopes']==['subset'];assert data['excluded']=={'MFCC@lr':1}
     assert data['source_sha256']==hashlib.sha256(scores.read_bytes()).hexdigest()
     assert client.get('/api/evaluations/unknown').status_code==404
+
+def test_sibling_layout_and_residual_availability():
+    from backend.paths import WEB_ROOT,GLOTTAL_ROOT,RESIDUAL_PROJECT
+    from backend.setup_local import build_registry
+    assert (WEB_ROOT/'dist/index.html').is_file()
+    assert (GLOTTAL_ROOT/'src/pipeline_v4/features.py').is_file()
+    assert (RESIDUAL_PROJECT/'src/extract_features.py').is_file()
+    config=build_registry()
+    residual=[e for e in config['models'] if e.get('pipeline')=='residual_modulation']
+    assert len(residual)==10
+    assert next(e for e in residual if e['key']=='E4a')['family']=='residual'
+    assert next(e for e in residual if e['key']=='B0')['family']=='mfcc'
+    assert {e['id'] for e in config['evaluations']} >= {'residual_external_standard','residual_external_reported'}
+
+
+def test_missing_residual_checkpoint_rejected(tmp_path,monkeypatch):
+    entry=dict(id='residual_E4a',pipeline='residual_modulation',available=False,path='missing.joblib',sha256=None,key='E4a',features={},family='residual',kind='svm_rbf')
+    reg=tmp_path/'registry.json';reg.write_text(json.dumps({'models':[entry]}));monkeypatch.setenv('DEEPGUARD_REGISTRY',str(reg))
+    response=client.post('/api/infer',files={'audio':('a.wav',wav(3))},data={'model_ids':'["residual_E4a"]'})
+    assert response.status_code==422
+    assert 'belum tersedia' in response.json()['detail']
+
+
+def test_residual_external_threshold_policies():
+    from backend.setup_local import build_registry
+    from backend.evaluations import load_evaluation
+    entries={e['id']:e for e in build_registry()['evaluations']}
+    standard=load_evaluation(entries['residual_external_standard'],Path(entries['residual_external_standard']['path']))
+    reported=load_evaluation(entries['residual_external_reported'],Path(entries['residual_external_reported']['path']))
+    assert len(standard['rows'])==2720
+    assert len({r['sample_id'] for r in standard['rows']})==272
+    assert {r['threshold'] for r in standard['rows']}=={.5}
+    assert standard['threshold_policy']=='standard_probability_0.5'
+    assert reported['threshold_policy']=='source_reported_unverified_selection'
+    assert next(r for r in reported['rows'] if r['model']=='Residual / E4a')['threshold']==.65
+
+
+def test_residual_original_extraction_and_checkpoint(tmp_path,monkeypatch):
+    import joblib
+    from sklearn.pipeline import Pipeline
+    from sklearn.impute import SimpleImputer
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.svm import SVC
+    from backend.setup_local import build_registry
+    from backend.residual import extract_residual,residual_score
+    entry=next(e for e in build_registry()['models'] if e['id']=='residual_E4a')
+    raw,sr=sf.read(io.BytesIO(wav(3)),always_2d=True)
+    features=extract_residual(raw,sr,entry)
+    cols=[k for k in features if k.startswith('res_')]
+    assert len(cols)==15
+    assert len([k for k in features if k.startswith('mod_')])==7
+    assert features['n_segments']==1
+    assert all(np.isfinite(features[k]) for k in cols)
+    # Flat modules imported by the legacy extractor must stay out of the API process.
+    assert 'extract_features' not in sys.modules
+    x=np.random.default_rng(42).normal(size=(20,len(cols)))
+    model=Pipeline([('imputer',SimpleImputer()),('scaler',StandardScaler()),('clf',SVC(probability=True,random_state=42))]).fit(x,[0,1]*10)
+    checkpoint=dict(model=model,features=cols,val_threshold=.87,experiment_id='E4a',feature_group='residual',model_type='svm_rbf',seed=42)
+    scored=residual_score(checkpoint,features,entry)
+    expected=model.predict_proba(np.asarray([[features[k] for k in cols]]))[0,1]
+    assert scored['score']==pytest.approx(expected)
+    assert scored['threshold']==.87
+    assert scored['score_type']=='class_probability'
+    path=tmp_path/'E4a_seed42.joblib';joblib.dump(checkpoint,path)
+    entry.update(path=str(path),sha256=hashlib.sha256(path.read_bytes()).hexdigest(),available=True)
+    reg=tmp_path/'registry.json';reg.write_text(json.dumps({'models':[entry]}));monkeypatch.setenv('DEEPGUARD_REGISTRY',str(reg))
+    response=client.post('/api/infer',files={'audio':('tone.wav',wav(3))},data={'model_ids':'["residual_E4a"]'})
+    assert response.status_code==200,response.text
+    result=response.json()
+    assert result['predictions'][0]['threshold']==.87
+    assert result['predictions'][0]['pipeline']=='residual_modulation'
+    assert result['features'][0]['_pipeline']=='residual_modulation'
+    assert result['predictions'][0]['score']==pytest.approx(expected)
+    bad=dict(entry,source_hashes={'audio_io.py':'bad'})
+    with pytest.raises(ValueError,match='Source residual berubah'):extract_residual(raw,sr,bad)

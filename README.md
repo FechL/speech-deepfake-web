@@ -1,89 +1,103 @@
 # DeepGuard — Audio Research Lab
 
-Webapp berbahasa Indonesia yang mengembangkan konsep [DeepGuard Flutter](https://github.com/alvinrw/Deepfake-audio-detection). Referensi diperiksa 20 Oktober 2026: berisi UI Flutter dan rancangan Stitch; laporan mendasarkan keputusan contoh pada nama file (`analysis_report_screen.dart`), tanpa bobot model atau layanan inferensi. Implementasi ini tidak memakai logika simulasi tersebut.
+Webapp inferensi dan evaluasi speech deepfake dengan dua repo penelitian terpisah:
 
-## Menjalankan webapp lengkap
+```text
+Myrepos/
+├── speech-deepfake-web/                   # frontend + API ini
+├── speech-deepfake-glottal/               # src/pipeline_v4, results/... v5
+└── speech-deepfake-residual-modulation/   # skripsi_residual_modulasi/src + checkpoints
+```
 
-Dari root `speech-deepfake-glottal`:
+Konsep visual dikembangkan dari [DeepGuard Flutter](https://github.com/alvinrw/Deepfake-audio-detection). Definisi model mengikuti kode training dan metadata checkpoint, bukan judul pada demo Flask atau klaim di dokumen.
+
+## Menjalankan dari repo web ini
 
 ```bash
-python -m venv web-app/.venv
-web-app/.venv/bin/pip install -r web-app/requirements-model.txt
-python web-app/backend/setup_local.py
-web-app/.venv/bin/uvicorn backend.app:app --app-dir web-app --host 127.0.0.1 --port 8000
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements-model.txt
+.venv/bin/python backend/setup_local.py
+.venv/bin/python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
 ```
 
-Buka http://127.0.0.1:8000. Backend menyajikan frontend dan API dari origin yang sama. Setup lokal mendaftarkan 8 model LR v5 seed 2026 (MFCC, LFCC, G0–G3, MFCC+G3, LFCC+G3) dan 9 hasil evaluasi asli dari tiga seed dan tiga skenario. Bobot tetap di folder results; tidak disalin ke hosting. Pilih **Muat hasil asli** pada halaman Evaluasi & metrik untuk membaca skor lokal.
+Buka http://127.0.0.1:8000. Gunakan `python -m ...` karena shebang console script virtualenv lama masih dapat merujuk lokasi sebelum folder dipindah. Virtualenv baru dianjurkan saat mengkloning ke mesin lain. Frontend saja: `npm run dev` (port 5173); tidak membutuhkan node_modules/build.
 
-Tanpa registry, analisis browser dan evaluasi CSV tetap berfungsi; tidak ada prediksi REAL/FAKE.
+Default path repo saudara ditentukan relatif terhadap repo web, bukan cwd. Untuk lokasi lain, set `DEEPGUARD_GLOTTAL_ROOT` dan `DEEPGUARD_RESIDUAL_ROOT` **saat setup dan saat menjalankan server**. Registry default: `models/registry.json`; override dengan `DEEPGUARD_REGISTRY`. Model, registry lokal, dan hasil riset tidak disalin ke hosting atau dimasukkan Git.
 
-Preview frontend mandiri: `npm --prefix web-app run dev` (port 5173). Tidak memerlukan node_modules atau build. Frontend juga diterbitkan privat melalui Sites; backend Python tetap harus di-host terpisah untuk inferensi dari halaman HTTPS.
+## Model glotal
 
-## Fitur
+Setup mendaftarkan delapan model LR seed 2026 dari run v5 `2b3a5cec0fa4dcd9`: MFCC, LFCC, G0, G1, G2, G3, MFCC+G3, LFCC+G3. Ekstraksi menggunakan `src.pipeline_v4.features.extract_audio_v4` dari repo glotal, sesuai konfigurasi, pooling, hash source, dan versi package training yang dibekukan. Threshold berasal dari spec bundle. Sembilan evaluasi asli mencakup tiga seed dan tiga skenario (LA subset, MLAAD, DF subset).
 
-- Unggah / drag-drop WAV, MP3, FLAC, OGG sesuai dukungan decoder browser; maksimum 25 MB dan 60 detik. WAV/FLAC direkomendasikan untuk backend SoundFile. Kegagalan decode dilaporkan, tanpa hasil buatan.
-- Pemutar, waveform amplitudo puncak, spektrogram berbasis FFT, durasi, RMS dBFS, clipping.
-- Perbandingan koefisien MFCC/LFCC mean/std dan pitch track autokorelasi eksploratif. Ekspor seluruh fitur JSON.
-- Inferensi beberapa model sekaligus melalui API Python; threshold beku, checksum model, proksi fonasi v4/v5, quality gate/abstention, missing feature count, provenance SHA-256 audio/model. Audio upload tidak disimpan ke disk oleh aplikasi.
-- Impor skor CSV untuk evaluasi per dataset/model/seed: ROC-AUC, EER interpolasi, accuracy, balanced accuracy, precision, recall, F1 FAKE, MCC, FPR/FNR, AP FAKE, TPR pada FPR ≤5%, ROC/PR dan confusion matrix.
-- Analisis kesalahan berpasangan hanya pada sample_id/dataset/seed/label yang identik. Eksplorasi threshold diberi label; tidak menimpa threshold sumber.
-- Ekspor metrik CSV dan laporan sesi JSON. Data contoh sintetis dilabeli eksplisit. Sesi berada di memori browser dan hilang saat reload; URL backend disimpan di localStorage.
+## Model residual modulation
 
-## Mendaftarkan model terlatih v4/v5
+Source utama: `skripsi_residual_modulasi/src/train_baseline.py` dan `configs/baseline.yaml`.
 
-**Repo referensi tidak menyertakan bobot.** Checkout lokal memiliki bundle riset v4/v5 dalam folder results yang diabaikan Git. Setup lokal memakai run v5 `2b3a5cec0fa4dcd9`; skor asli dimuat dari backend, tidak diunggah ke hosting. Scope subset, retained/excluded, seed, run ID dan checksum sumber masuk laporan. Model ONNX/Torch memerlukan adapter khusus; API saat ini mendukung dictionary spesifikasi Joblib v4/v5 proyek lokal.
+| ID | Input | Classifier | Dimensi |
+| --- | --- | --- | --- |
+| B0 | MFCC | SVM RBF | 240 |
+| B1 | LFCC | SVM RBF | 40 |
+| B2 | MFCC + LFCC | SVM RBF | 280 |
+| B3 | MFCC + LFCC | Random Forest | 280 |
+| B4 | MFCC + LFCC | XGBoost | 280 |
+| E4a | LP residual | SVM RBF | 15 |
+| E4b | Modulasi | SVM RBF | 7 |
+| E4c | Residual + modulasi | SVM RBF | 22 |
+| E4d | Residual + modulasi | Random Forest | 22 |
+| E4e | Residual + modulasi | XGBoost | 22 |
 
-Gunakan bundle model terlatih yang dipercaya dan **konfigurasi ekstraksi persis dari training**. Versi library harus cocok dengan lingkungan training; gunakan lock environment training untuk model lama. Jangan memuat file Joblib dari unggahan pengguna atau sumber tidak dipercaya karena format ini mengeksekusi kode Python.
+**Pada pemeriksaan 21 Oktober 2026, checkpoint residual belum ada di checkout ini**, meskipun dokumentasi audit lama menyebutnya tersedia. UI tetap menampilkan kesepuluh model dengan status bobot belum tersedia dan checkbox nonaktif. Tidak ada prediksi buatan atau fallback ke model glotal.
+
+Letakkan checkpoint dipercaya `{ID}_seed42.joblib` di salah satu folder:
+
+- `speech-deepfake-residual-modulation/skripsi_residual_modulasi/checkpoints/`
+- `speech-deepfake-residual-modulation/web_cek/model/`
+
+Atau registrasikan lokasi lain:
 
 ```bash
-web-app/.venv/bin/python web-app/backend/register_bundle.py \
-  --bundle /absolute/path/seed_2026/models_frozen_v5.joblib \
-  --config /absolute/path/resolved_config.json \
-  --dataset ASVspoof2019_LA --seed 2026 \
-  --output web-app/models/registry.json
-
-DEEPGUARD_REGISTRY="$PWD/web-app/models/registry.json" \
-  web-app/.venv/bin/uvicorn backend.app:app --app-dir web-app --host 127.0.0.1 --port 8000
+.venv/bin/python backend/setup_local.py --residual-checkpoints /absolute/path/checkpoints
 ```
 
-`--config` menerima YAML atau JSON dengan `features` atau `settings.features`. File registry hanya berisi lokasi lokal, SHA-256, key spec, konfigurasi fitur, family/kind, dataset dan seed. Script mengganti registry output; gunakan output baru untuk mempertahankan registry sebelumnya. Registry dapat menggabungkan entries dari beberapa bundle dengan ID unik. API tidak menerima path model dari browser.
+Restart backend setelah mengganti lokasi repo atau environment. Registry dibaca ulang pada request, sehingga penambahan bobot cukup diikuti setup ulang dan tombol **Perbarui** di UI.
 
-Backend memakai `src.pipeline_v4.features.extract_audio_v4`, orientasi REAL=0/FAKE=1, dan `scores_v4`, dengan adapter score-fusion dan kalibrator v5. Keluarga fitur meliputi MFCC, LFCC, G0–G3 dan fusion sesuai spec dalam bundle. Model dan preprocessing tetap beku. Skor decision function tidak dikonversi menjadi persentase keyakinan.
+Adapter memakai `extract_utterance_features` **asli** melalui worker Python terisolasi. Import flat (`audio_io`, `lfcc`, dll.) dari repo residual tidak mencemari namespace `src` glotal. Audio decoding divalidasi oleh API, lalu diteruskan sebagai WAV float sementara; loader residual tetap menjalankan mono/resampling, peak normalization, segmentasi 2 detik hop 2 detik, padding audio 1–2 detik, LPC p16, MFCC/LFCC dan agregasi mean asli. Audio <1 detik atau sunyi menghasilkan abstention. WAV sementara otomatis dihapus.
 
-## CSV evaluasi
+Checkpoint residual adalah dictionary `model`, `features`, `feature_group`, `model_type`, `experiment_id`, `seed`, `val_threshold`. Adapter memvalidasi metadata, urutan fitur, kelas REAL=0/FAKE=1 dan checksum; memakai **predict_proba kelas FAKE** dan **val_threshold checkpoint**. Skor ini probabilitas classifier, belum tentu terkalibrasi. Threshold hardcoded demo Flask tidak digunakan. `source_hashes` mengikat registry pada source yang diperiksa saat setup; versi training residual tidak diketahui tanpa metadata lingkungan aslinya. Ketidakcocokan binary/dependency harus diselesaikan dengan environment training, bukan retraining otomatis.
 
-```csv
-sample_id,label,score,model,dataset,threshold,seed
-real_001,0,0.12,MFCC_LR,test_set,0.5,2026
-fake_001,1,0.88,MFCC_LR,test_set,0.5,2026
-real_001,0,0.20,LFCC_LR,test_set,0.5,2026
-fake_001,1,0.80,LFCC_LR,test_set,0.5,2026
-```
+Joblib hanya boleh berasal dari operator/sumber dipercaya karena dapat mengeksekusi kode Python. File checkpoint tidak diterima sebagai unggahan browser.
 
-`seed` opsional; semua kolom lain wajib. Skor finite dan lebih tinggi berarti FAKE. Label hanya 0/1; threshold wajib tetap dalam grup, ditetapkan di train/dev, **bukan dipilih ulang di test**. sample_id harus unik per dataset/model/seed. Maksimum 10 MB / 100.000 baris. Dataset dan seed tidak digabung otomatis. Nilai undefined ditampilkan `—` dan diekspor `null`/kosong. EER dihitung dengan interpolasi linear titik ROC saat FPR=FNR. Precision–recall memakai titik threshold empiris; AP memakai integral stepwise. Backend juga membaca skor long-format v5 langsung melalui registry; perbandingan utama mempertahankan classifier LR. Belum mendukung CI bootstrap, uji signifikansi, atau t-DCF (memerlukan skor sistem ASV dan cost protocol).
+## Evaluasi residual yang sudah tersedia
 
-## Perbedaan jalur ekstraksi
+Backend membaca `hasil_validasi/validation_external_predictions.csv`: 272 segmen, sepuluh model, total 2.720 skor. Dua opsi evaluasi tersedia:
 
-Browser: decode Web Audio, downmix mono dan resample 16 kHz. Metadata kHz decoder merupakan rate AudioContext, bukan klaim sample rate file asli. FFT 512, Hann 25 ms, hop 10 ms, 40 triangular filter Mel HTK/linear, natural log dan DCT-II c1–c20; subsampling hingga sekitar 400 frame. F0 merupakan proksi autokorelasi 60–400 Hz, threshold korelasi 0,72. Tidak menyediakan jitter/shimmer palsu. FFT/pitch diekstraksi dari sinyal, tidak berdasarkan nama file.
+1. **Standar 0.5**: cutoff probabilitas standar, bukan threshold validation checkpoint.
+2. **Threshold laporan sumber**: memakai `calibrated_thresh` pada `validation_external_metrics.csv`; asal pemilihannya belum diverifikasi. Istilah tersebut tidak membuktikan probabilitas terkalibrasi. Threshold ini **tidak** dipakai untuk inferensi.
 
-Python: ekstraktor lengkap v4 dengan filter Mel librosa, window seleksi aktif, normalisasi per window, pooling median/IQR/p10/p90, fitur delta dan fonasi Praat sesuai config training. **Fitur browser tidak dipakai untuk input model**. Fitur glotal merupakan proksi fonasi, bukan aliran glotal terukur; bukan bukti definitif keaslian atau atribusi generator.
+Metrik dihitung ulang dari CSV probabilitas yang dibulatkan empat desimal; ringkasan metrik sumber tidak disalin sebagai hasil hitung. EER webapp menggunakan interpolasi ROC. Selisih EER dengan ringkasan sumber belum diaudit sepenuhnya dan tidak diasumsikan hanya akibat pembulatan. Identitas sampel memakai `rel_path` yang dinormalisasi, bukan basename. Dataset residual tidak digabung dengan populasi evaluasi glotal dan tidak diberi peringkat lintas dataset. Sumber, scope, policy threshold, pengecualian dan SHA-256 masuk laporan JSON.
 
-## API & deployment
+## Antarmuka dan metrik
 
-- `GET /api/health`, `GET /api/models`, `GET /api/evaluations/{id}`, `POST /api/infer` (multipart: `audio`, `model_ids` JSON array 1–8 ID).
-- Backend default bind loopback. Satu inferensi aktif; request lain menerima 429. Ekstraksi berjalan di thread agar API responsif.
-- CORS dibatasi origin lokal dan URL Sites ini; override lewat `DEEPGUARD_ORIGINS` dipisahkan koma. CORS bukan autentikasi. Untuk host remote, tambahkan HTTPS, autentikasi, request-body limit dan rate limit di reverse proxy; jangan expose API tanpa kontrol akses.
-- Halaman HTTPS memerlukan backend HTTPS yang terjangkau. Menjalankan backend lokal dan membuka localhost adalah cara termudah memakai model lokal. Hosting Sites ini hanya memuat frontend; model Python tidak dijalankan dalam Cloudflare Worker.
-- Registry dan audio tidak dipublikasikan. Tidak ada akun/login palsu atau metrik hardcoded sebagai hasil riil.
+- Unggah/drag-drop audio (maksimal 25 MB / 60 detik), pemutar, waveform dan spektrogram.
+- Pemilihan model dikelompokkan glotal dan residual/modulasi, dengan status ketersediaan bobot. Maksimum 18 model per request.
+- Fitur browser MFCC/LFCC dan pitch autokorelasi bersifat eksploratif. Tidak menjadi input model. Fitur Python masing-masing pipeline tampil terpisah; residual menampilkan 15 fitur residual dan tujuh modulasi, jumlah segmen dan failure rate.
+- ROC-AUC, EER interpolasi, accuracy, balanced accuracy, precision/recall/F1 FAKE, MCC, FPR/FNR, average precision, TPR@FPR≤5%, ROC/PR dan confusion matrix.
+- Perbandingan berpasangan mensyaratkan sample_id, dataset, seed, label identik. Tidak mengklaim independensi statistik atau generalisasi dari perbedaan skor. CI bootstrap, uji signifikansi, dan t-DCF belum diimplementasikan.
+- Ekspor fitur/laporan JSON dan metrik CSV. Contoh sintetis selalu dilabeli. Sesi hanya di memori browser; URL backend tersimpan di localStorage.
 
-## Verifikasi
+CSV impor manual wajib: `sample_id,label,score,model,dataset,threshold`; `seed` opsional. Label 0=REAL, 1=FAKE; skor lebih tinggi berarti FAKE; `score >= threshold` memprediksi FAKE. Threshold tetap per model/dataset/seed. Maksimal 10 MB / 100.000 baris. Nilai undefined tampil `—` dan diekspor null/kosong. EER memakai interpolasi linear ROC saat FPR=FNR.
+
+## API dan hosting
+
+`GET /api/health`, `GET /api/models`, `GET /api/evaluations/{id}`, `POST /api/infer` multipart (`audio`, `model_ids` JSON array). Backend hanya menjalankan satu inferensi pada suatu waktu, request bersamaan menerima 429. CORS dibatasi origin lokal dan Site privat; override `DEEPGUARD_ORIGINS` dengan daftar dipisahkan koma. CORS bukan autentikasi. Deployment remote Python memerlukan HTTPS, autentikasi, batas body dan rate limit.
+
+Hosting Sites hanya menyajikan frontend; untuk inferensi lokal dan hasil penelitian, gunakan localhost server Python di atas. Halaman HTTPS memerlukan backend HTTPS yang dapat dijangkau browser. Tidak ada bobot/data penelitian yang dipublikasikan.
+
+## Pengujian
 
 ```bash
-npm --prefix web-app test
-web-app/.venv/bin/pip install pytest httpx
-web-app/.venv/bin/python -m pytest web-app/tests/test_api.py -q
+npm test
+.venv/bin/python -m pip install pytest httpx
+.venv/bin/python -m pytest tests/test_api.py -q
 ```
 
-Test JS meliputi ranking sempurna/terbalik/ties, metrik single-class, parsing/validasi CSV, threshold, alignment sampel berpasangan, FFT, RMS dan pitch sinyal 140 Hz. Test API mencakup validasi input, inferensi adapter model fixture sintetis (bukan model produksi), dan checksum. Browser QA: pemuatan sinyal contoh, analisis fitur, evaluasi sintetis dan navigasi.
-
-Hasil verifikasi implementasi: 9 test JavaScript, 6 test API; 58.368 skor asli seed 2026 / internal LA dicocokkan dengan `metrics_main.csv` untuk AUC, accuracy, balanced accuracy, F1 dan MCC dengan toleransi 1e-10. Inferensi bundle nyata juga diuji pada MP3 demo 60 detik untuk MFCC/LFCC/G3; semua paket yang dicatat training dan hash source ekstraktor cocok. Hasil model pada demo bukan validasi generalisasi atau jaminan label benar.
+Pengujian mencakup metrik/CSV/FFT, path repo saudara, inferensi glotal, adapter checkpoint residual dengan fixture sintetis, ekstraktor residual asli, isolasi import, checkpoint hilang, checksum, dan kedua kebijakan threshold evaluasi residual. Fixture sintetis tidak menggantikan pengujian bobot produksi residual yang belum tersedia.

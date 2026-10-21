@@ -5,3 +5,5 @@
 .card{min-width:0}.analysis-grid,.chart-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 @media(max-width:850px){.analysis-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:640px){.chart-grid{grid-template-columns:minmax(0,1fr)}}
+.model-group{font-size:10px;letter-spacing:1px;color:var(--cyan);padding:13px 0 8px}.model-choice.unavailable{opacity:.55}.model-choice.unavailable input{cursor:not-allowed}.feature-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.quality-grid small{overflow-wrap:anywhere}
+@media(max-width:640px){.feature-cards{grid-template-columns:1fr}}
