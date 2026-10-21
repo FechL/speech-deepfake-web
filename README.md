@@ -116,7 +116,7 @@ Untuk data campuran:
 2. Ganti pilihan menjadi **FAKE**, lalu tambahkan file FAKE. Label file REAL sebelumnya tetap REAL.
 3. Periksa/edit label setiap baris antrean, lalu klik **Jalankan / lanjutkan batch**.
 
-Label tidak pernah diambil otomatis dari nama file/folder dan tidak menjadi input classifier. Label opsional: tanpa label, prediksi tetap berjalan, tetapi file tidak masuk metrik akurasi/AUC/F1. Pada halaman unggah tunggal juga tersedia checkbox label ground truth dan pilihan REAL/FAKE. Mengubah label unggah tunggal membersihkan hasil sebelumnya agar analisis berikutnya memakai metadata label terbaru.
+Label tidak pernah diambil otomatis dari nama file/folder dan tidak menjadi input classifier. Label opsional: tanpa label, prediksi tetap berjalan, tetapi file tidak masuk metrik akurasi/AUC/F1. Analisis audio tunggal selalu tanpa label. Pilihan model ada dalam bagian Model & representasi yang dapat dibuka/tutup dan tertutup secara default.
 
 Batch memakai POST `/api/infer` berurutan per file, dengan `model_ids` dan field opsional `ground_truth` (`0` REAL, `1` FAKE). API menolak label di luar 0/1, mengembalikan label sebagai metadata, dan menambahkan `correct` pada prediksi; nilainya `null` untuk abstain/tanpa label. Label tidak dikirim ke fungsi ekstraksi/skoring. Kesalahan satu file dicatat dan batch melanjutkan file berikutnya. Tombol berhenti menunggu request aktif selesai; file yang masih menunggu dapat dilanjutkan. Tombol ulangi mengantrekan kembali file gagal. Mengubah label antrean setelah run membersihkan hasil file itu dan mengantrekannya ulang.
 
