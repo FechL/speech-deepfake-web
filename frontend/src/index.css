@@ -1,0 +1,291 @@
+/* Global Reset & Typography System */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Light / Dark Mode Color Variables */
+:root {
+  /* Default to Dark Mode matching Figma premium theme */
+  --bg: #0B1326;
+  --surface: #0B1326;
+  --card-bg: rgba(23, 31, 51, 0.55);
+  --card-high: #222A3D;
+  --card-highest: #2D3449;
+  
+  --primary: #00DAF3;
+  --primary-hover: #00C6DD;
+  --primary-active: #009BB0;
+  --primary-container: #00626E;
+  --primary-glow: rgba(0, 218, 243, 0.15);
+  
+  --secondary: #4EDEA3;
+  --secondary-glow: rgba(78, 222, 163, 0.15);
+  --secondary-container: #003F2A;
+  
+  --error: #FFB4AB;
+  --error-glow: rgba(255, 180, 171, 0.15);
+  --error-container: #93000A;
+  
+  --text: #DAE2FD;
+  --text-muted: #BAC9CC;
+  --border: rgba(0, 218, 243, 0.15);
+  --input-border: rgba(186, 201, 204, 0.2);
+  --input-focus: #00DAF3;
+  
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-label: 'Geist', 'Courier New', Courier, monospace;
+  
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  transition: background-color 0.4s ease, color 0.4s ease;
+  overflow-x: hidden;
+}
+
+html.light {
+  --bg: #F8F9FA;
+  --surface: #FFFFFF;
+  --card-bg: rgba(255, 255, 255, 0.7);
+  --card-high: #E7E8E9;
+  --card-highest: #E1E3E4;
+  
+  --primary: #0052FF;
+  --primary-hover: #003EC7;
+  --primary-active: #002D9C;
+  --primary-container: #DFE3FF;
+  --primary-glow: rgba(0, 82, 255, 0.1);
+  
+  --secondary: #00A572;
+  --secondary-glow: rgba(0, 165, 114, 0.1);
+  --secondary-container: #FDD400;
+  
+  --error: #BA1A1A;
+  --error-glow: rgba(186, 26, 26, 0.1);
+  --error-container: #FFFFDAD6;
+  
+  --text: #191C1D;
+  --text-muted: #434656;
+  --border: rgba(0, 82, 255, 0.15);
+  --input-border: rgba(67, 70, 86, 0.25);
+  --input-focus: #0052FF;
+  
+  /* Hanken Grotesk for Light Theme Title matching figma */
+  --font-display: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-high);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--card-highest);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.05;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.12;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes scanLine {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes radarWave {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+
+/* Custom Glassmorphism Classes */
+.glass-container {
+  background: var(--card-bg);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Interactive elements */
+.btn-primary {
+  background: var(--primary);
+  color: var(--bg);
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px var(--primary-glow);
+}
+
+.btn-primary:active {
+  background: var(--primary-active);
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Forms & Input Elements */
+.form-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-family: var(--font-label);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.form-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 12px 16px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+html.light .form-input {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.form-input:focus {
+  border-color: var(--input-focus);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.form-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* Responsive Shell Utilities */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg);
+  position: relative;
+}
+
+.app-content {
+  flex: 1;
+  padding: 24px;
+  margin-top: 60px; /* Account for mobile/desktop top navbar */
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+@media (max-width: 650px) {
+  .app-content {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 651px) {
+  .app-content {
+    margin-top: 60px;
+    margin-left: 88px; /* Sidebar width */
+  }
+}
+
+/* Grid overlay background */
+.ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(100px);
+  z-index: 0;
+  animation: pulseGlow 8s ease-in-out infinite;
+}
+
+.grid-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}

@@ -1,0 +1,33 @@
+# Daftar Tugas Pengembangan - Frontend DeepGuard AI Web App
+
+- [x] Inisialisasi Proyek & Desain
+  - [x] Scaffolding React + Vite
+  - [x] Konfigurasi `index.html` (Memuat Google Fonts: Hanken Grotesk, Inter, Geist & CSS reset)
+  - [x] Konfigurasi `index.css` (Variabel CSS untuk tema terang/gelap, reset browser, transisi global)
+- [x] Komponen Dasar (Reusable Components)
+  - [x] Komponen `GlassCard.jsx` (Visual pembungkus kartu transparan)
+  - [x] Komponen `GridBackground.jsx` (Latar belakang digital grid interaktif dengan HTML Canvas)
+  - [x] Konfigurasi `AppContext.jsx` (Menyimpan status Login, Riwayat, Tema Terang/Gelap, Setelan Sensitivitas)
+- [x] Fitur Autentikasi
+  - [x] Layar `LoginScreen.jsx` (Form masuk analis forensik dengan validasi & atmosfir visual glow)
+  - [x] Layar `RegisterScreen.jsx` (Form pendaftaran akun baru)
+- [x] Shell Layout Navigasi
+  - [x] Komponen `MainShell.jsx` (Navigasi rail di kiri untuk desktop, navigasi bawah untuk mobile)
+  - [x] Header Top Bar (Logo shield, nama produk, tombol ubah tema, info ringkas analis)
+- [x] Halaman Utama & Dashboard
+  - [x] Layar `DashboardScreen.jsx` (Bento grid dengan Aksi Deteksi, Metrik Total Dianalisis, dan daftar Riwayat 5 Terakhir)
+  - [x] Halaman Riwayat Lengkap (`HistoryScreen.jsx` - jika analis menekan "Lihat Semua")
+- [x] Layar Deteksi & Pemrosesan
+  - [x] Layar `SelectMethodScreen.jsx` (Unggah file drag-and-drop & dialog perekaman suara dengan visualisasi mic berjalan)
+  - [x] Layar `SelectModelScreen.jsx` (Pemilihan model Alvin/Fawwas, pemindaian model, serta konsol log forensik visual dengan bar progress)
+- [x] Layar Laporan Hasil
+  - [x] Layar `AnalysisReportScreen.jsx`
+    - [x] Animasi melingkar pengukur akurasi (Circular Gauge)
+    - [x] Gelombang audio statis (Waveform) dengan kontrol putar/jeda (Play/Pause) tersinkronisasi
+    - [x] Tabel metadata forensik file audio
+    - [x] Kartu rekomendasi investigasi & tombol unduh (.txt laporan forensik)
+- [x] Layar Setelan (Settings)
+  - [x] Layar `SettingsScreen.jsx` (Profil investigator, slider threshold sensitivitas AI, info detail build perangkat lunak, tombol keluar)
+- [x] Integrasi & Penyempurnaan
+  - [x] Integrasi API fetch ke `/detect` backend Flask (dengan fallback ke simulasi lokal jika backend mati)
+  - [x] Pengujian responsivitas tata letak di berbagai ukuran resolusi browser

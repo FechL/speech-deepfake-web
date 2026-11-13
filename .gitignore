@@ -6,3 +6,21 @@ __pycache__/
 .openai/*.tar.gz
 models/
 data-test
+
+# Large checkpoint files and archives (>100MB)
+models_checkpoints.zip
+*.zip
+backend/models/*.zip
+
+# Audio files uploaded during runtime / testing
+backend/uploads/*.wav
+backend/uploads/*.mp3
+backend/uploads/*.webm
+backend/uploads/*.ogg
+backend/uploads/*.flac
+backend/uploads/*.m4a
+backend/uploads/*.aac
+
+# Dependencies
+node_modules/
+frontend/node_modules/

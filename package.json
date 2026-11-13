@@ -1,9 +1,11 @@
 {
-  "name": "deepguard-audio-lab",
+  "name": "deepguard-speech-deepfake-web",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "python -m http.server 5173 --bind 127.0.0.1 --directory dist",
-    "test": "node tests/metrics.test.mjs && node tests/batch.test.mjs"
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "serve": "python -m http.server 5173 --bind 127.0.0.1 --directory dist",
+    "test": "python run_tests.py"
   }
 }
