@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import GlassCard from '../../components/GlassCard';
 import GridBackground from '../../components/GridBackground';
 
-const DashboardScreen = ({ onStartDetection, onViewReport, onViewAllHistory, onOpenWorkbench }) => {
+const DashboardScreen = ({ onStartDetection, onViewReport, onViewAllHistory }) => {
   const { history, theme } = useApp();
   const isDark = theme === 'dark';
 
@@ -81,18 +81,6 @@ const DashboardScreen = ({ onStartDetection, onViewReport, onViewAllHistory, onO
               />
             </div>
 
-            {onOpenWorkbench && (
-              <button 
-                onClick={onOpenWorkbench} 
-                style={styles.workbenchCardBtn}
-                title="Buka kumpulan hasil & uji ulang tanpa upload lagi"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M2 17l10 5 10-5M2 12l10 5 10-5M12 2L2 7l10 5 10-5-10-5z"/>
-                </svg>
-                <span>Kumpulan Hasil & Uji Ulang</span>
-              </button>
-            )}
           </GlassCard>
         </div>
       </div>
@@ -327,23 +315,6 @@ const styles = {
     background: 'var(--primary)',
     borderRadius: '3px',
     transition: 'width 0.5s ease',
-  },
-  workbenchCardBtn: {
-    marginTop: '14px',
-    width: '100%',
-    padding: '8px 12px',
-    borderRadius: '10px',
-    border: '1px solid var(--border)',
-    background: 'var(--surface)',
-    color: 'var(--text)',
-    fontSize: '0.78rem',
-    fontWeight: '600',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
   },
   historySection: {
     width: '100%',

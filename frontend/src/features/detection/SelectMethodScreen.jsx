@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import GlassCard from '../../components/GlassCard';
 
 // Helper to encode Float32Array into standard 16-bit PCM WAV bytes
@@ -347,7 +348,7 @@ const SelectMethodScreen = ({ onBack, onAudioSelected }) => {
 
       {errorMessage && <div role="alert" style={styles.errorBanner}>{errorMessage}</div>}
 
-      {isRecordModalOpen && (
+      {isRecordModalOpen && createPortal((
         <div style={styles.modalOverlay}>
           <div className="glass-container animate-fade-in" style={styles.modalContent}>
             <h3 style={styles.modalTitle}>Rekam Audio</h3>
@@ -403,7 +404,7 @@ const SelectMethodScreen = ({ onBack, onAudioSelected }) => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       <style>{`
         .methods-layout {
@@ -539,28 +540,27 @@ const styles = {
   },
   modalOverlay: {
     position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(11, 19, 38, 0.8)',
+    inset: 0,
+    background: 'rgba(11, 19, 38, 0.68)',
+    backdropFilter: 'blur(4px)',
+    WebkitBackdropFilter: 'blur(4px)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 999,
-    padding: '24px',
+    zIndex: 2000,
+    padding: '20px',
   },
   modalContent: {
     width: '100%',
-    maxWidth: '420px',
-    padding: '32px 24px',
+    maxWidth: '460px',
+    padding: '28px 24px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    background: 'var(--card-bg)',
-    backdropFilter: 'blur(20px)',
+    background: 'var(--surface)',
     border: '1px solid var(--border)',
-    borderRadius: '20px',
+    borderRadius: '18px',
+    boxShadow: '0 24px 80px rgba(0, 0, 0, 0.28)',
   },
   modalTitle: {
     fontSize: '1.25rem',

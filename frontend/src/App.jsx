@@ -92,7 +92,6 @@ const AppContent = () => {
           onStartDetection={() => setActiveView('detection-method')}
           onViewReport={handleHistoryItemClicked}
           onViewAllHistory={() => setActiveView('history')}
-          onOpenWorkbench={() => setActiveView('workbench')}
         />
       )}
       
@@ -134,17 +133,14 @@ const AppContent = () => {
           score={reportData.score}
           probAuthentic={reportData.probAuthentic}
           probDeepfake={reportData.probDeepfake}
-          threshold={reportData.threshold}
           audioBytes={reportData.audioBytes}
           fileMimeType={reportData.fileMimeType}
           onBackToDashboard={() => setActiveView('dashboard')}
-          onTestAgain={() => setActiveView('detection-model')}
-          onOpenWorkbench={() => setActiveView('workbench')}
         />
       )}
 
       {activeView === 'workbench' && (
-        <ResultsCollectionScreen 
+        <ResultsCollectionScreen
           onStartNewDetection={() => {
             setSelectedAudio(null);
             setActiveView('detection-method');

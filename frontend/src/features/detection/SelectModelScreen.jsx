@@ -14,8 +14,8 @@ const SelectModelScreen = ({
 }) => {
   const { backendUrl, sensitivity, defaultResearcher, alvinModel, fawwasModel } = useApp();
   const [selectedResearcher, setSelectedResearcher] = useState(() => defaultResearcher || 'alvin');
-  const [currentAlvinModel, setCurrentAlvinModel] = useState(() => alvinModel || 'B4');
-  const [currentFawwasModel, setCurrentFawwasModel] = useState(() => fawwasModel || 'rerec_knn_5');
+  const currentAlvinModel = alvinModel || 'B4';
+  const currentFawwasModel = fawwasModel || 'rerec_knn_5';
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logIndex, setLogIndex] = useState(0);
@@ -25,21 +25,21 @@ const SelectModelScreen = ({
   const progressTimerRef = useRef(null);
 
   const alvinModelName = {
-    B4: 'B4 (XGBoost · 280 Fitur)',
-    B0: 'B0 (SVM RBF · 240 Fitur MFCC)',
-    B1: 'B1 (SVM RBF · 40 Fitur LFCC)',
-    B2: 'B2 (SVM RBF · 280 Fitur)',
-    B3: 'B3 (Random Forest · 280 Fitur)',
-    E4c: 'E4c (SVM RBF · Residual + Modulasi)',
-    E4a: 'E4a (SVM RBF · LP Residual)',
-    E4b: 'E4b (SVM RBF · Spektrum Modulasi)',
-    E4e: 'E4e (XGBoost · Residual + Modulasi)'
+    B4: 'B4 · XGBoost',
+    B0: 'B0 · SVM RBF',
+    B1: 'B1 · SVM RBF',
+    B2: 'B2 · SVM RBF',
+    B3: 'B3 · Random Forest',
+    E4c: 'E4c · SVM RBF',
+    E4a: 'E4a · SVM RBF',
+    E4b: 'E4b · SVM RBF',
+    E4e: 'E4e · XGBoost'
   }[currentAlvinModel] || `${currentAlvinModel} (XGBoost)`;
 
   const fawwasModelName = {
-    rerec_knn_5: 'KNN Forensik (N=5 · 204 Fitur)',
-    rerec_knn_3: 'KNN Forensik (N=3 · Sensitif)',
-    rerec_knn_7: 'KNN Forensik (N=7 · Konservatif)',
+    rerec_knn_5: 'KNN Forensik · N=5',
+    rerec_knn_3: 'KNN Forensik · N=3',
+    rerec_knn_7: 'KNN Forensik · N=7',
     glottal_g3: 'Glottal Waveform (G3)',
     glottal_lfcc_g3: 'Fusi LFCC + Glottal G3'
   }[currentFawwasModel] || 'KNN Forensik (N=5)';
@@ -214,32 +214,13 @@ const SelectModelScreen = ({
                   <div style={styles.modelHeader}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <h4 style={styles.modelName}>Model Alvin</h4>
-                      <span style={styles.modelBadgePrimary}>Skripsi Utama</span>
                     </div>
                     {selectedResearcher === 'alvin' && <div style={styles.activeCheck} />}
                   </div>
 
-                  <p style={styles.modelDesc}>
-                    Klasifikasi spektral MFCC/LFCC & residual vokal skripsi.
-                  </p>
-
-                  <div style={styles.subModelSelector} onClick={(e) => e.stopPropagation()}>
-                    <span style={styles.subModelLabel}>Varian Checkpoint:</span>
-                    <select 
-                      value={currentAlvinModel} 
-                      onChange={(e) => setCurrentAlvinModel(e.target.value)}
-                      style={styles.subModelSelect}
-                    >
-                      <option value="B4">B4: XGBoost (280 Fitur) — Rekomendasi</option>
-                      <option value="B0">B0: SVM RBF (MFCC 240 Fitur)</option>
-                      <option value="B1">B1: SVM RBF (LFCC 40 Fitur)</option>
-                      <option value="B2">B2: SVM RBF (MFCC + LFCC 280 Fitur)</option>
-                      <option value="B3">B3: Random Forest (280 Fitur)</option>
-                      <option value="E4c">E4c: SVM RBF (Residual + Modulasi · 22 Fitur)</option>
-                      <option value="E4a">E4a: SVM RBF (LP Residual · 15 Fitur)</option>
-                      <option value="E4b">E4b: SVM RBF (Spektrum Modulasi · 7 Fitur)</option>
-                      <option value="E4e">E4e: XGBoost (Residual + Modulasi · 22 Fitur)</option>
-                    </select>
+                  <div style={styles.configuredModel}>
+                    <span style={styles.configuredLabel}>Model aktif dari Pengaturan</span>
+                    <strong>{alvinModelName}</strong>
                   </div>
                 </div>
 
@@ -255,28 +236,13 @@ const SelectModelScreen = ({
                   <div style={styles.modelHeader}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <h4 style={styles.modelName}>Model Fawwas</h4>
-                      <span style={styles.modelBadgeSecondary}>Komparator Forensik</span>
                     </div>
                     {selectedResearcher === 'fawwas' && <div style={styles.activeCheck} />}
                   </div>
 
-                  <p style={styles.modelDesc}>
-                    Klasifikasi 204 fitur akustik re-recording berbasis KNN.
-                  </p>
-
-                  <div style={styles.subModelSelector} onClick={(e) => e.stopPropagation()}>
-                    <span style={styles.subModelLabel}>Varian Forensik:</span>
-                    <select 
-                      value={currentFawwasModel} 
-                      onChange={(e) => setCurrentFawwasModel(e.target.value)}
-                      style={styles.subModelSelect}
-                    >
-                      <option value="rerec_knn_5">KNN N=5 (204 Fitur Akustik) — Stabil</option>
-                      <option value="rerec_knn_3">KNN N=3 (Sensitif Jarak Dekat)</option>
-                      <option value="rerec_knn_7">KNN N=7 (Konservatif Voting)</option>
-                      <option value="glottal_g3">Glottal G3 (Siklus Pita Suara)</option>
-                      <option value="glottal_lfcc_g3">Fusi LFCC + Glottal G3</option>
-                    </select>
+                  <div style={styles.configuredModel}>
+                    <span style={styles.configuredLabel}>Model aktif dari Pengaturan</span>
+                    <strong>{fawwasModelName}</strong>
                   </div>
                 </div>
               </div>
@@ -523,31 +489,8 @@ const styles = {
     lineHeight: '1.4',
     margin: '0 0 10px 0',
   },
-  subModelSelector: {
-    marginTop: '10px',
-    paddingTop: '10px',
-    borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-  subModelLabel: {
-    fontSize: '0.72rem',
-    fontFamily: 'var(--font-mono)',
-    color: 'var(--text-muted)',
-    whiteSpace: 'nowrap',
-  },
-  subModelSelect: {
-    flex: 1,
-    padding: '6px 10px',
-    borderRadius: '8px',
-    border: '1px solid var(--border)',
-    background: 'var(--surface)',
-    color: 'var(--text)',
-    fontSize: '0.78rem',
-    outline: 'none',
-    cursor: 'pointer',
-  },
+  configuredModel: { marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' },
+  configuredLabel: { color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: '600' },
   startBtn: {
     width: '100%',
   },

@@ -60,10 +60,33 @@ Hasil build produksi otomatis dikompilasi ke folder `dist/`.
 
 | Model | Algoritma | Fitur | Peran Forensik | File Checkpoint |
 |---|---|---|---|---|
-| **Model Alvin** | XGBoost (B4) | 280 Fitur (MFCC 20 stat + Delta + Delta2 + LFCC 20 mean/std) | Deteksi manipulasi speech deepfake vokal & kloning AI | `models_checkpoints.zip` (`B4_seed42.joblib`) |
+| **Model Alvin** | XGBoost (B4) | 280 Fitur (MFCC 20 stat + Delta + Delta2 + LFCC 20 mean/std) | Deteksi manipulasi speech deepfake vokal & kloning AI | `backend/checkpoints/alvin/models_checkpoints_alvin.zip` (`B4_seed42.joblib`) |
 | **Model Fawwas** | KNN (N=5) | 204 Fitur (MFCC 40 + LFCC 40 + ZCR + RMS + Delta) | Deteksi rekaman ulang (*re-recording*) & anomali akustik forensik | `backend/models/rerec_KNN_N=5.pkl` & `knn_rerec_scaler.joblib` |
 
-Kedua model bekerja secara mandiri dan dapat dipilih langsung oleh analis pada layar **Pilih Mesin Deteksi AI**.
+Arsip checkpoint Alvin berukuran sekitar 196 MB dan dikonfigurasi menggunakan Git LFS (`.gitattributes`) agar dapat disertakan di GitHub.
+
+Kedua model bekerja secara mandiri. Varian model dipilih dari menu **Pengaturan** dan digunakan pada layar deteksi.
+
+### Referensi Threshold Model
+
+Nilai threshold disimpan di dokumentasi ini sebagai referensi; nilai tersebut tidak ditampilkan pada layar Pengaturan.
+
+| Model | Threshold |
+|---|---:|
+| Alvin B4 | 0.3793 (37.9%) |
+| Alvin B0 | 0.4359 (43.6%) |
+| Alvin B1 | 0.3821 (38.2%) |
+| Alvin B2 | 0.4346 (43.5%) |
+| Alvin B3 | 0.4329 (43.3%) |
+| Alvin E4c | 0.4095 (41.0%) |
+| Alvin E4a | 0.4028 (40.3%) |
+| Alvin E4b | 0.4766 (47.7%) |
+| Alvin E4e | 0.4249 (42.5%) |
+| Fawwas KNN N=5 | 0.5000 (50.0%) |
+| Fawwas KNN N=3 | 0.5000 (50.0%) |
+| Fawwas KNN N=7 | 0.5000 (50.0%) |
+| Fawwas Glottal G3 | 0.5000 (50.0%) |
+| Fawwas LFCC + Glottal G3 | 0.5000 (50.0%) |
 
 ---
 
