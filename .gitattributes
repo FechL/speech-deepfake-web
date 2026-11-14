@@ -1,1 +1,2 @@
 backend/checkpoints/alvin/models_checkpoints_alvin.zip filter=lfs diff=lfs merge=lfs -text
+backend/checkpoints/fawwas/*.zip filter=lfs diff=lfs merge=lfs -text

@@ -61,6 +61,9 @@ FAWWAS_SCALER_CANDIDATES = [
     BASE_DIR / "knn_rerec_scaler.joblib",
     PROJECT_ROOT.parent / "Website_lama" / "backend" / "knn_rerec_scaler.joblib",
 ]
+FAWWAS_ARCHIVE_CANDIDATES = [
+    *((BASE_DIR / "checkpoints" / "fawwas").glob("*.zip")),
+]
 FAWWAS_TARGET_LEN = 48_000  # 3 seconds @ 16kHz
 FAWWAS_N_MFCC = 40
 FAWWAS_N_LFCC = 40
@@ -138,7 +141,12 @@ class DeepGuardEngine:
         scaler_path = next((p for p in FAWWAS_SCALER_CANDIDATES if p.exists()), None)
 
         if not model_path or not scaler_path:
-            self.fawwas_error = "File model rerec_KNN_N=5.pkl atau scaler tidak ditemukan."
+            has_research_archives = any(path.is_file() for path in FAWWAS_ARCHIVE_CANDIDATES)
+            self.fawwas_error = (
+                "Arsip riset Fawwas tersedia, tetapi arsip ini tidak berisi extractor audio dan checkpoint KNN yang dibutuhkan runtime."
+                if has_research_archives
+                else "File model rerec_KNN_N=5.pkl atau scaler tidak ditemukan."
+            )
             print(f"[!] Model Fawwas: {self.fawwas_error}")
             return
 

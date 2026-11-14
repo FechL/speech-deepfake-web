@@ -61,9 +61,9 @@ Hasil build produksi otomatis dikompilasi ke folder `dist/`.
 | Model | Algoritma | Fitur | Peran Forensik | File Checkpoint |
 |---|---|---|---|---|
 | **Model Alvin** | XGBoost (B4) | 280 Fitur (MFCC 20 stat + Delta + Delta2 + LFCC 20 mean/std) | Deteksi manipulasi speech deepfake vokal & kloning AI | `backend/checkpoints/alvin/models_checkpoints_alvin.zip` (`B4_seed42.joblib`) |
-| **Model Fawwas** | KNN (N=5) | 204 Fitur (MFCC 40 + LFCC 40 + ZCR + RMS + Delta) | Deteksi rekaman ulang (*re-recording*) & anomali akustik forensik | `backend/models/rerec_KNN_N=5.pkl` & `knn_rerec_scaler.joblib` |
+| **Model Fawwas** | Arsip eksperimen seed 2026–2028 (MFCC/LFCC/glotal; LR, SVM, RF) | Skema fitur tercantum dalam `frozen_selection_v6.json` di setiap arsip | Kandidat riset forensik suara | `backend/checkpoints/fawwas/` |
 
-Arsip checkpoint Alvin berukuran sekitar 196 MB dan dikonfigurasi menggunakan Git LFS (`.gitattributes`) agar dapat disertakan di GitHub.
+Arsip checkpoint Alvin berukuran sekitar 196 MB dan arsip Fawwas sekitar 92–94 MB per seed. Keduanya dikonfigurasi menggunakan Git LFS (`.gitattributes`) agar dapat disertakan di GitHub. Arsip Fawwas berisi checkpoint dan metadata eksperimen, tetapi tidak menyertakan implementasi ekstraksi fitur audio; arsip tersebut belum otomatis digunakan oleh inference runtime. Lihat `backend/checkpoints/fawwas/README.md`.
 
 Kedua model bekerja secara mandiri. Varian model dipilih dari menu **Pengaturan** dan digunakan pada layar deteksi.
 
