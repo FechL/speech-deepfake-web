@@ -12,12 +12,9 @@ const AnalysisReportScreen = ({
   score, 
   probAuthentic,
   probDeepfake,
-  threshold,
   audioBytes,
   fileMimeType,
-  onBackToDashboard,
-  onTestAgain,
-  onOpenWorkbench
+  onBackToDashboard
 }) => {
   const { theme } = useApp();
   const isDark = theme === 'dark';
@@ -32,7 +29,6 @@ const AnalysisReportScreen = ({
   const validScore = Number.isFinite(score) ? score : (isAuthentic ? 0.95 : 0.85);
   const pAuth = Number.isFinite(probAuthentic) ? probAuthentic : (isAuthentic ? validScore : 1 - validScore);
   const pFake = Number.isFinite(probDeepfake) ? probDeepfake : (isAuthentic ? 1 - validScore : validScore);
-  const pThresh = Number.isFinite(threshold) ? threshold : 0.38;
 
   useEffect(() => {
     let current = 0;
@@ -55,45 +51,6 @@ const AnalysisReportScreen = ({
       URL.revokeObjectURL(audioUrl);
     };
   }, [audioUrl]);
-
-  const handleDownloadReport = () => {
-    const statusText = isAuthentic ? 'SUARA ASLI (AUTENTIK)' : 'TERINDIKASI DEEPFAKE (SUARA PALSU)';
-    const reportText = `=====================================================
-            LAPORAN FORENSIK AUDIO DEEPGUARD AI
-=====================================================
-Tanggal Analisis : ${new Date().toLocaleString('id-ID')}
-Nama Berkas      : ${fileName}
-Format Berkas    : ${fileFormat}
-Ukuran Berkas    : ${fileSize}
-Durasi Berkas    : ${fileDuration}
-Mesin Detektor   : ${aiModel}
------------------------------------------------------
-HASIL KEPUTUSAN  : ${statusText}
-Tingkat Keyakinan: ${(validScore * 100).toFixed(1)}%
-Peluang Asli     : ${(pAuth * 100).toFixed(1)}%
-Peluang Deepfake : ${(pFake * 100).toFixed(1)}%
-Ambang Batas (Th): ${(pThresh * 100).toFixed(1)}%
------------------------------------------------------
-REKOMENDASI INVESTIGASI:
-${
-  isAuthentic
-    ? '- KESIMPULAN: Audio teridentifikasi sebagai rekaman ASLI.\n- Pola spektral dan akustik alami suara manusia terpenuhi.\n- Tidak ditemukan anomali generative AI vokal.'
-    : '- KESIMPULAN: Audio teridentifikasi sebagai SUARA PALSU / DEEPFAKE.\n- Ditemukan pola sintesis suara AI atau rekaman ulang (re-recording).\n- Amankan berkas asli untuk validasi forensik lebih lanjut.'
-}
-=====================================================
-      DeepGuard AI Forensic Lab - Verifikasi Mandiri
-=====================================================`;
-
-    const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `laporan_forensik_${fileName.replace(/\.[^/.]+$/, "")}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
 
   // High contrast color styling
   const statusColor = isAuthentic 
@@ -163,11 +120,6 @@ ${
           <div style={styles.bannerHeadline}>
             {isAuthentic ? 'SUARA ASLI (AUTENTIK)' : 'TERINDIKASI DEEPFAKE'}
           </div>
-          <div style={{ ...styles.bannerSubtext, color: isDark ? 'var(--text)' : '#1F2937' }}>
-            {isAuthentic
-              ? 'Audio teridentifikasi sebagai rekaman suara asli manusia.'
-              : 'Audio terindikasi memiliki pola sintesis atau manipulasi deepfake.'}
-          </div>
         </div>
       </div>
 
@@ -203,14 +155,9 @@ ${
                   <span style={{ ...styles.scoreNumber, color: statusColor }}>
                     {Math.round(gaugeProgress * 100)}%
                   </span>
-                  <span style={styles.scoreLabel}>
-                    {isAuthentic ? 'KEYAKINAN ASLI' : 'KEYAKINAN DEEPFAKE'}
-                  </span>
                 </div>
               </div>
-              <span style={styles.gaugeCaption}>
-                {isAuthentic ? 'Tingkat Keyakinan Suara Asli' : 'Tingkat Keyakinan Deepfake'}
-              </span>
+              <span style={styles.gaugeCaption}>Skor deteksi</span>
             </div>
 
             {/* Probability Breakdown Bars */}
@@ -247,14 +194,6 @@ ${
                 </div>
               </div>
 
-              <div style={styles.thresholdNotice}>
-                Ambang Batas Deteksi (Threshold): <strong>{(pThresh * 100).toFixed(1)}%</strong>
-                <div style={{ fontSize: '0.72rem', marginTop: '2px', color: 'var(--text-muted)' }}>
-                  {pFake >= pThresh 
-                    ? `Peluang deepfake (${(pFake*100).toFixed(1)}%) melebihi ambang batas (${(pThresh*100).toFixed(1)}%) → PALSU`
-                    : `Peluang deepfake (${(pFake*100).toFixed(1)}%) di bawah ambang batas (${(pThresh*100).toFixed(1)}%) → ASLI`}
-                </div>
-              </div>
             </div>
 
             {/* Audio Waveform Player */}
@@ -298,74 +237,9 @@ ${
                   {aiModel}
                 </span>
               </div>
-              <div style={styles.tableRow}>
-                <span style={styles.tableLabel}>Status Klasifikasi</span>
-                <span style={{ ...styles.tableValue, color: statusColor, fontWeight: '800' }}>
-                  {isAuthentic ? 'ASLI' : 'DEEPFAKE'}
-                </span>
-              </div>
             </div>
           </GlassCard>
 
-          <GlassCard padding="20px" style={{ ...styles.infoCard, marginTop: '16px' }}>
-            <h4 style={styles.sectionTitle}>Catatan Analisis</h4>
-            <div style={styles.recommendationContent}>
-              <div 
-                style={{
-                  ...styles.recIconBox,
-                  background: statusBg,
-                  color: statusColor
-                }}
-              >
-                {isAuthentic ? (
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    <polyline points="9 11 11 13 15 9"/>
-                  </svg>
-                ) : (
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                  </svg>
-                )}
-              </div>
-              <div style={styles.recommendationText}>
-                {isAuthentic ? (
-                  <>
-                    <strong style={{ color: statusColor, display: 'block', marginBottom: '4px' }}>
-                      Suara Asli:
-                    </strong>
-                    Pola spektral dan akustik konsisten dengan rekaman suara alami.
-                  </>
-                ) : (
-                  <>
-                    <strong style={{ color: statusColor, display: 'block', marginBottom: '4px' }}>
-                      Peringatan Deepfake:
-                    </strong>
-                    Terdeteksi pola sintesis AI vokal atau indikasi rekaman ulang (re-recording).
-                  </>
-                )}
-              </div>
-            </div>
-          </GlassCard>
-
-          {/* Quick Model Comparison Box */}
-          <div style={styles.compareBox}>
-            <div style={styles.compareTitle}>Uji Pembanding</div>
-            <div style={styles.compareDesc}>
-              {aiModel.includes('Alvin') 
-                ? 'Uji audio ini dengan Model Fawwas (KNN Forensik) untuk perbandingan.'
-                : 'Uji audio ini dengan Model Alvin B4 (XGBoost) untuk perbandingan.'}
-            </div>
-            {onTestAgain && (
-              <button onClick={onTestAgain} style={styles.switchModelBtn}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                </svg>
-                <span>Uji Ulang dengan Model Lain</span>
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
@@ -377,21 +251,6 @@ ${
           <span>Kembali Ke Beranda</span>
         </button>
 
-        {onOpenWorkbench && (
-          <button onClick={onOpenWorkbench} style={styles.workbenchBtn}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M2 17l10 5 10-5M2 12l10 5 10-5M12 2L2 7l10 5 10-5-10-5z"/>
-            </svg>
-            <span>Kumpulan Hasil & Uji Ulang</span>
-          </button>
-        )}
-
-        <button onClick={handleDownloadReport} className="btn-primary" style={styles.downloadBtn}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 3v12"/>
-          </svg>
-          <span>UNDUH LAPORAN FORENSIK (.TXT)</span>
-        </button>
       </footer>
 
       <style>{`
@@ -746,23 +605,6 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-  },
-  workbenchBtn: {
-    background: 'var(--primary-glow)',
-    border: '1px solid var(--primary)',
-    color: 'var(--primary)',
-    padding: '14px 20px',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontSize: '0.88rem',
-    fontWeight: '700',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    transition: 'all 0.2s ease',
-  },
-  downloadBtn: {
-    flex: 1,
   },
 };
 

@@ -38,6 +38,7 @@ ALLOWED_EXTENSIONS = {"wav", "mp3", "m4a", "webm", "ogg", "flac"}
 # Model Alvin Specifications (280 features)
 # ─────────────────────────────────────────────────────────────
 ALVIN_ARCHIVE_CANDIDATES = [
+    BASE_DIR / "checkpoints" / "alvin" / "models_checkpoints_alvin.zip",
     MODELS_DIR / "models_checkpoints.zip",
     PROJECT_ROOT / "models_checkpoints.zip",
     PROJECT_ROOT.parent / "Website_lama" / "models_checkpoints.zip",
@@ -90,7 +91,7 @@ class DeepGuardEngine:
 
         archive_path = next((p for p in ALVIN_ARCHIVE_CANDIDATES if p.exists()), None)
         if not archive_path:
-            raise RuntimeError("Arsip models_checkpoints.zip tidak ditemukan.")
+            raise RuntimeError("Arsip checkpoint Alvin tidak ditemukan. Letakkan models_checkpoints_alvin.zip di backend/checkpoints/alvin/.")
 
         target_name = f"{normalized_id}_seed42.joblib"
         with zipfile.ZipFile(archive_path) as archive:
@@ -109,7 +110,7 @@ class DeepGuardEngine:
     def _load_alvin_model(self):
         archive_path = next((p for p in ALVIN_ARCHIVE_CANDIDATES if p.exists()), None)
         if not archive_path:
-            self.alvin_error = "Arsip models_checkpoints.zip tidak ditemukan."
+            self.alvin_error = "Arsip checkpoint Alvin tidak ditemukan. Letakkan models_checkpoints_alvin.zip di backend/checkpoints/alvin/."
             print(f"[!] Model Alvin: {self.alvin_error}")
             return
 

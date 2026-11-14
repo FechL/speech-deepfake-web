@@ -81,15 +81,15 @@ const MainShell = ({ children, currentIndex, onTabChange }) => {
             <span style={styles.navLabel}>Deteksi</span>
           </button>
 
-          <button 
+          <button
             style={{...styles.navItem, ...(currentIndex === 2 ? styles.navItemActive : {})}}
             onClick={() => onTabChange(2)}
-            title="Kumpulan Hasil & Workbench Forensik"
+            title="Kumpulan Hasil & Uji"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M2 17l10 5 10-5M2 12l10 5 10-5M12 2L2 7l10 5 10-5-10-5z"/>
             </svg>
-            <span style={styles.navLabel}>Hasil & Uji</span>
+            <span style={styles.navLabel}>Hasil</span>
           </button>
 
           <button 
@@ -141,7 +141,7 @@ const MainShell = ({ children, currentIndex, onTabChange }) => {
           <span>Deteksi</span>
         </button>
 
-        <button 
+        <button
           style={{...styles.bottomBtn, ...(currentIndex === 2 ? styles.bottomBtnActive : {})}}
           onClick={() => onTabChange(2)}
         >

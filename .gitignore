@@ -24,3 +24,5 @@ backend/uploads/*.aac
 # Dependencies
 node_modules/
 frontend/node_modules/
+
+!backend/checkpoints/alvin/models_checkpoints_alvin.zip
