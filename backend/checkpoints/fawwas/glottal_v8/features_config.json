@@ -1,0 +1,14 @@
+{
+  "sample_rate": 16000,
+  "pitch_floor": 60.0,
+  "pitch_ceiling": 400.0,
+  "trim_db": 35.0,
+  "active_db": 30.0,
+  "min_active_fraction": 0.5,
+  "window_s": 2.0,
+  "window_hop_s": 1.0,
+  "max_windows": 6,
+  "min_voiced_run_s": 0.12,
+  "min_pulses": 8,
+  "extract_prediction": false
+}

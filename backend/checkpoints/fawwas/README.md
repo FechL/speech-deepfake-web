@@ -1,7 +1,9 @@
 # Checkpoint Fawwas
 
-`fawwas_glottal_v8_bundle.zip` adalah model yang dipakai backend (Glottal v8, LA + ADDITIONAL, run `baef033a6a80d0fa`).
-Isi: `models/seed_{2026,2027,2028}/models_frozen_v8.joblib`, `frozen_selection_v8.json`, `extractor/glottal_features.py`,
-`config/`, `SHA256SUMS.txt`, `README.md`. Backend memuat seed 2026 secara default (`DEEPGUARD_FAWWAS_SEED`).
+Model yang dipakai backend: `glottal_v8/` (Glottal v8, LA + ADDITIONAL, run `baef033a6a80d0fa`).
 
-Arsip `seed_*-2026111...zip` (v6) adalah model eksperimen lama dan tidak dipakai runtime.
+* `glottal_v8/seed_2026/models_frozen_v8.joblib` — 26 sistem beku (SHA256 `8ccfcf9b...`, sesuai `frozen_selection_v8.json`)
+* `glottal_v8/features_config.json` — pengaturan ekstraktor saat training
+* `glottal_v8/run_identity.json`, `glottal_v8/README.md` — provenans dan metrik
+
+Seed 2027/2028 tidak disertakan (ukuran). Arsip `seed_*-2026111...zip` (v6) adalah eksperimen lama dan tidak dipakai runtime.

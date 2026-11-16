@@ -40,6 +40,7 @@ ALLOWED_EXTENSIONS = {"wav", "mp3", "m4a", "webm", "ogg", "flac"}
 # ─────────────────────────────────────────────────────────────
 # Model Alvin Specifications (280 features)
 # ─────────────────────────────────────────────────────────────
+ALVIN_DIR = BASE_DIR / "checkpoints" / "alvin"
 ALVIN_ARCHIVE_CANDIDATES = [
     BASE_DIR / "checkpoints" / "alvin" / "models_checkpoints_alvin.zip",
     MODELS_DIR / "models_checkpoints.zip",
@@ -68,9 +69,17 @@ class DeepGuardEngine:
         if normalized_id in self.alvin_cache:
             return self.alvin_cache[normalized_id]
 
+        # 1) plain files committed in the repo: backend/checkpoints/alvin/<ID>_seed42.joblib
+        loose = ALVIN_DIR / f"{normalized_id}_seed42.joblib"
+        if loose.is_file():
+            cp = joblib.load(loose)
+            self.alvin_cache[normalized_id] = cp
+            return cp
+
+        # 2) legacy fallback: zip archive
         archive_path = next((p for p in ALVIN_ARCHIVE_CANDIDATES if p.exists()), None)
         if not archive_path:
-            raise RuntimeError("Arsip checkpoint Alvin tidak ditemukan. Letakkan models_checkpoints_alvin.zip di backend/checkpoints/alvin/.")
+            raise RuntimeError(f"Checkpoint Alvin {normalized_id} tidak ditemukan di {ALVIN_DIR}.")
 
         target_name = f"{normalized_id}_seed42.joblib"
         with zipfile.ZipFile(archive_path) as archive:
@@ -87,9 +96,10 @@ class DeepGuardEngine:
         return cp
 
     def _load_alvin_model(self):
+        has_loose = (ALVIN_DIR / "B4_seed42.joblib").is_file()
         archive_path = next((p for p in ALVIN_ARCHIVE_CANDIDATES if p.exists()), None)
-        if not archive_path:
-            self.alvin_error = "Arsip checkpoint Alvin tidak ditemukan. Letakkan models_checkpoints_alvin.zip di backend/checkpoints/alvin/."
+        if not has_loose and not archive_path:
+            self.alvin_error = "Checkpoint Alvin tidak ditemukan di backend/checkpoints/alvin/."
             print(f"[!] Model Alvin: {self.alvin_error}")
             return
 
