@@ -1,6 +1,6 @@
 """Model Fawwas: frozen glottal v8 models (pipeline forensic_reference_glottal_v8, LA + ADDITIONAL).
 
-Loads models from backend/checkpoints/fawwas/fawwas_glottal_v8_bundle.zip and scores audio
+Loads backend/checkpoints/fawwas/glottal_v8/seed_<SEED>/models_frozen_v8.joblib (zip bundle as fallback) and scores audio
 with the feature extractor the models were trained with (glottal_features.extract_audio_v4).
 """
 import io
@@ -16,7 +16,9 @@ import pandas as pd
 
 from . import glottal_features as gf
 
-BUNDLE = Path(__file__).resolve().parents[2] / "checkpoints" / "fawwas" / "fawwas_glottal_v8_bundle.zip"
+FAWWAS_DIR = Path(__file__).resolve().parents[2] / "checkpoints" / "fawwas"
+MODEL_DIR = FAWWAS_DIR / "glottal_v8"                       # plain files committed in the repo
+BUNDLE = FAWWAS_DIR / "fawwas_glottal_v8_bundle.zip"       # optional legacy fallback
 SEED = int(os.environ.get("DEEPGUARD_FAWWAS_SEED", "2026"))
 MAX_SECONDS = 60.0  # same centre crop used for the ADDITIONAL training audio
 
@@ -58,18 +60,24 @@ class FawwasGlottal:
         return bool(self.systems)
 
     def _load(self):
-        if not BUNDLE.is_file():
-            self.error = f"Bundel model Fawwas tidak ditemukan: {BUNDLE.name}"
-            return
+        loose_model = MODEL_DIR / f"seed_{SEED}" / "models_frozen_v8.joblib"
         try:
-            with zipfile.ZipFile(BUNDLE) as z:
-                self.cfg = json.loads(z.read("config/features_config.json"))
-                self.run_id = json.loads(z.read("config/run_identity.json")).get("settings", {}).get("profile", "")
-                blob = z.read(f"models/seed_{SEED}/models_frozen_v8.joblib")
-            self.systems = joblib.load(io.BytesIO(blob))
+            if loose_model.is_file():
+                self.cfg = json.loads((MODEL_DIR / "features_config.json").read_text())
+                self.run_id = json.loads((MODEL_DIR / "run_identity.json").read_text()).get("settings", {}).get("profile", "")
+                self.systems = joblib.load(loose_model)
+            elif BUNDLE.is_file():
+                with zipfile.ZipFile(BUNDLE) as z:
+                    self.cfg = json.loads(z.read("config/features_config.json"))
+                    self.run_id = json.loads(z.read("config/run_identity.json")).get("settings", {}).get("profile", "")
+                    blob = z.read(f"models/seed_{SEED}/models_frozen_v8.joblib")
+                self.systems = joblib.load(io.BytesIO(blob))
+            else:
+                self.error = f"Model Fawwas tidak ditemukan: {loose_model}"
+                return
             missing = [v[0] for v in VARIANTS.values() if v[0] not in self.systems]
             if missing:
-                raise KeyError(f"Sistem tidak ada dalam bundel: {missing}")
+                raise KeyError(f"Sistem tidak ada dalam model: {missing}")
             self.error = None
         except Exception as exc:  # noqa: BLE001
             self.systems = {}

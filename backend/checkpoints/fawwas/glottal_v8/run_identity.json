@@ -1,0 +1,174 @@
+{
+  "schema": 8,
+  "settings": {
+    "pipeline_version": "forensic_reference_glottal_v8",
+    "profile": "la_additional",
+    "input_mode": "reuse_v6",
+    "source_v6_run_id": "47ffb6ee9742965d",
+    "source_v5_run_id": "2b3a5cec0fa4dcd9",
+    "seeds": [
+      2026,
+      2027,
+      2028
+    ],
+    "n_jobs": 2,
+    "features": {
+      "sample_rate": 16000,
+      "pitch_floor": 60.0,
+      "pitch_ceiling": 400.0,
+      "trim_db": 35.0,
+      "active_db": 30.0,
+      "min_active_fraction": 0.5,
+      "window_s": 2.0,
+      "window_hop_s": 1.0,
+      "max_windows": 6,
+      "min_voiced_run_s": 0.12,
+      "min_pulses": 8,
+      "extract_prediction": false
+    },
+    "additional": {
+      "relative_root": "data/external/ADDITIONAL",
+      "metadata_csv": null,
+      "split_policy": "exploratory_content_grouped",
+      "split_seed": 2026,
+      "fractions": [
+        0.6,
+        0.2,
+        0.2
+      ],
+      "min_class_per_split": 8,
+      "split_attempts": 512,
+      "max_seconds": 60.0,
+      "crop_position": "center",
+      "stage_to_runtime": true
+    },
+    "bootstrap_draws": 1000,
+    "min_speakers": 5,
+    "families": [
+      "G3_glottal",
+      "MFCC",
+      "LFCC",
+      "MFCC_LFCC",
+      "MFCC_plus_G3",
+      "LFCC_plus_G3"
+    ],
+    "models": [
+      "svm_rbf",
+      "rf",
+      "xgb"
+    ],
+    "model_params": {
+      "svm_rbf": {
+        "C": 10.0,
+        "kernel": "rbf",
+        "probability": true,
+        "class_weight": "balanced"
+      },
+      "rf": {
+        "n_estimators": 200,
+        "max_depth": null,
+        "class_weight": "balanced"
+      },
+      "xgb": {
+        "n_estimators": 200,
+        "max_depth": 6,
+        "learning_rate": 0.05,
+        "scale_pos_weight": 1.0
+      }
+    },
+    "controls": [
+      "QC_strict",
+      "Missing_only"
+    ],
+    "glottal_ablation": true,
+    "primary_classifier": "svm_rbf",
+    "threshold_protocol": "empirical_dev_eer_nearest",
+    "operating_fpr_targets": [
+      0.01,
+      0.05
+    ],
+    "external_targets": [
+      "mlaad",
+      "df"
+    ],
+    "feature_statistics": {
+      "min_per_class": 5,
+      "fdr_alpha": 0.05,
+      "bootstrap_draws": 1000
+    }
+  },
+  "feature_hash": "8a47ffa654c39576a1fbfab69d8aeb42d1f0353595a83902c390c68195c71f58",
+  "code_hash": "058f778375b28ff02cc2ade3790b291f1dc6535c0fa38f090bf43ea88444d8a3",
+  "packages": {
+    "numpy": "2.1.3",
+    "pandas": "2.2.3",
+    "scipy": "1.16.3",
+    "librosa": "0.11.0",
+    "praat-parselmouth": "0.4.6",
+    "scikit-learn": "1.6.1",
+    "soundfile": "0.14.0",
+    "joblib": "1.6.0",
+    "matplotlib": "3.10.0",
+    "PyYAML": "6.0.3",
+    "xgboost-cpu": "3.0.5"
+  },
+  "reference": {
+    "analysis_date": "2026-10-24",
+    "source_repository": "/home/aliy/Coding/Myrepos/speech-deepfake-residual-modulation",
+    "source_files_sha256": {
+      "README.md": "7610a1ab4b611f65c904e99c63c208e7d24f492de87bfc5aa1b8b0c26f55993c",
+      "skripsi_residual_modulasi/configs/baseline.yaml": "3013256ce6b382c5ee88a23f74c334a74672dc422faa10c7295c61b43999ea03",
+      "skripsi_residual_modulasi/src/run_pipeline.py": "9c1a54abfc5c46ac28c93d4c3bd17ae0711b4df288524400ea14a3c14e45b153",
+      "skripsi_residual_modulasi/src/train_baseline.py": "c8df6440330ae945e37195a17bca68288f4a55de94c4c87519aaa4f139f5bd19",
+      "skripsi_residual_modulasi/src/make_splits.py": "af22efddd3815e51a7b5a31f9e32e59bb9835a027fc0faf787ae0fed28c9ef39",
+      "skripsi_residual_modulasi/src/audio_io.py": "ae411d33fc06792a60a76609c892d26a1c8b40e3288d0cd6a1b542c05eb3daba",
+      "skripsi_residual_modulasi/src/extract_features.py": "420ff66df82cd558351e496d60262f9b4670a6434f64f909a4b990bbcb7d39ad",
+      "skripsi_residual_modulasi/src/statistical_tests.py": "5ea38aa435e06218658a71a3663abebdad4f728465382bd4c2a685ec66b067ab",
+      "skripsi_residual_modulasi/src/evidence_consistency.py": "cecf7786a21cbb77cc46d38033acc921e8e336f398fb1142eb05d4fe1783bd6d",
+      "skripsi_residual_modulasi/src/metrics.py": "a9e132abecd84e71e85b12ef59841343f66acf0975e920b6279f95a086cc9e93",
+      "skripsi_residual_modulasi/src/aggregate_scores.py": "7d1a5f2303f274043a13b4a57ca55068b000263e1ab337657c58d494b2b8c672",
+      "skripsi_residual_modulasi/src/evaluate_validation_folder.py": "5833debe9ca046b7b785c6409c144d3210fa57144ad3c37d810af35f0352a2a6"
+    },
+    "adaptation": "two_branch_baseline_glottal; fixed_SVM_RF_XGB; dev_EER_threshold; train_feature_effects; evidence_consistency",
+    "retained": [
+      "train_only_imputer_scaler",
+      "fixed_reference_hyperparameters",
+      "dev_only_threshold",
+      "utterance_unit",
+      "Mann_Whitney_BH_effects",
+      "Spearman_kappa_error_categories"
+    ],
+    "changed": [
+      "glottal_G0_G1_G2_G3_replace_residual_modulation",
+      "own_MFCC_LFCC_240_each",
+      "own_grouped_historical_splits",
+      "no_silent_random_split_fallback",
+      "bounded_audio60s_and_common_DSP",
+      "no_target_threshold_calibration",
+      "unknown_speaker_no_speaker_CI",
+      "three_seeds",
+      "own_Colab_folder_structure"
+    ]
+  },
+  "additional": {
+    "mode": "reuse_v6_handcrafted_features_and_split_only",
+    "source_run_id": "47ffb6ee9742965d",
+    "source_identity_sha256": "db3131991a7cc7fe933f7f967d79be948ba5989c1ccfa75482bf0b5708ca537f",
+    "artifacts": {
+      "features/additional_split.csv": "7dcc6f0cd0285c39ab43e0686ed468bad6e3613ffc405c55cd175091fdb10607",
+      "features/COMPLETED.json": "ed41c5980eb601ada0882e2d3489100ae1f51bf64b6ee7789a34b5b8c9a7ebde"
+    },
+    "reused_estimators": false,
+    "reused_learned_preprocessing": false
+  },
+  "la_development": {
+    "source_run_id": "2b3a5cec0fa4dcd9",
+    "artifacts": {
+      "features/train_dev.csv": "39b45609d161214a2bae5025c9d27a03acbfbc6ad81d064287af582c8876b04a",
+      "manifests/train_dev_2026.csv": "dfcd3fd1e4347b9359036a2f0cb2681f079c8e1822820c8d43cf83def4ce68a0",
+      "manifests/train_dev_2027.csv": "be36b5c3d4154661e7987b990166b3abfec1d249aa8dccc56f7c84242fb44ca5",
+      "manifests/train_dev_2028.csv": "69fe722cdfb9e4c2c8329e7893aa7e20ac1e03f5037b4eefeaa258e539209181"
+    },
+    "source_identity_sha256": "87c01592306bae8f659ae5c0524691e047147a53e58d3303fc885eb3e66e6989"
+  }
+}

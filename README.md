@@ -68,10 +68,10 @@ Preprocessing tiap model berada di paket sendiri dengan README masing-masing:
 
 | Model | Algoritma | Fitur | Peran Forensik | File Checkpoint |
 |---|---|---|---|---|
-| **Model Alvin** | XGBoost (B4) | 280 Fitur (MFCC 20 stat + Delta + Delta2 + LFCC 20 mean/std) | Deteksi manipulasi speech deepfake vokal & kloning AI | `backend/checkpoints/alvin/models_checkpoints_alvin.zip` (`B4_seed42.joblib`) |
-| **Model Fawwas** | Glottal v8 (SVM, RF, XGBoost; seed 2026) | 44 fitur glotal G3, atau fusi MFCC/LFCC 240 + G3 (284 fitur) | Bukti fonasi glotal untuk deteksi deepfake | `backend/checkpoints/fawwas/fawwas_glottal_v8_bundle.zip` |
+| **Model Alvin** | XGBoost (B4) | 280 Fitur (MFCC 20 stat + Delta + Delta2 + LFCC 20 mean/std) | Deteksi manipulasi speech deepfake vokal & kloning AI | `backend/checkpoints/alvin/*_seed42.joblib` (10 berkas, langsung di repo) |
+| **Model Fawwas** | Glottal v8 (SVM, RF, XGBoost; seed 2026) | 44 fitur glotal G3, atau fusi MFCC/LFCC 240 + G3 (284 fitur) | Bukti fonasi glotal untuk deteksi deepfake | `backend/checkpoints/fawwas/glottal_v8/` |
 
-Bundel Fawwas (~49 MB) berisi model beku seed 2026/2027/2028, ekstraktor fitur (salinannya ada di `backend/preprocessing/fawwas/`), konfigurasi dan README; runtime memakai seed 2026 (ubah dengan env `DEEPGUARD_FAWWAS_SEED`). Seed 2026/2027/2028 v6 lama pada folder yang sama tidak lagi dipakai. Catatan: fitur glotal murni generalisasinya lemah pada data eksternal (AUC MLAAD ≈ 0,54; DF ≈ 0,58) — lihat README di dalam bundel.
+Semua model sudah ada di repo sebagai berkas biasa (tanpa zip, tanpa Git LFS): cukup `git clone`. Alvin: 10 berkas `*_seed42.joblib` (B3 dan E4d dikompres joblib agar < 100 MB; prediksi identik). Fawwas: `backend/checkpoints/fawwas/glottal_v8/` berisi model beku seed 2026, konfigurasi ekstraktor, dan README; ubah seed dengan env `DEEPGUARD_FAWWAS_SEED` (hanya seed 2026 yang ada di repo). Arsip v6 lama tidak dipakai. Catatan: fitur glotal murni generalisasinya lemah pada data eksternal (AUC MLAAD ≈ 0,54; DF ≈ 0,58) — lihat `glottal_v8/README.md`.
 
 Kedua model bekerja secara mandiri. Varian model dipilih dari menu **Pengaturan** dan digunakan pada layar deteksi.
 

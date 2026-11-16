@@ -1,7 +1,5 @@
 """Alvin preprocessing must follow the training recipe (see backend/preprocessing/alvin/README.md)."""
-import io
 import sys
-import zipfile
 from pathlib import Path
 
 import joblib
@@ -16,7 +14,7 @@ from backend.preprocessing.alvin.features import (
     lfcc_feature_names, mfcc_feature_names, prepare_audio, segment_audio,
 )
 
-ZIP = ROOT / "backend" / "checkpoints" / "alvin" / "models_checkpoints_alvin.zip"
+CKPT_DIR = ROOT / "backend" / "checkpoints" / "alvin"
 SR = 16000
 
 
@@ -38,10 +36,11 @@ def test_feature_names_and_counts():
 
 def test_every_checkpoint_gets_all_its_columns():
     f = extract_alvin_features(speechlike(), SR)
-    with zipfile.ZipFile(ZIP) as z:
-        for name in z.namelist():
-            cp = joblib.load(io.BytesIO(z.read(name)))
-            assert set(cp["features"]) <= set(f), name
+    files = sorted(CKPT_DIR.glob("*_seed42.joblib"))
+    assert len(files) == 10, "all 10 Alvin checkpoints must be committed as plain files"
+    for path in files:
+        cp = joblib.load(path)
+        assert set(cp["features"]) <= set(f), path.name
 
 
 def test_peak_normalisation_makes_features_scale_invariant():
