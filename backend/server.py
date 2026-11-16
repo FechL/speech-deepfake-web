@@ -1,7 +1,7 @@
 """
 DeepGuard Local API Server (Flask)
 Port: 5001
-Supports Model Alvin B4 (XGBoost) and Model Fawwas (KNN Forensik)
+Supports Model Alvin B4 (XGBoost) and Model Fawwas (Glottal v8)
 """
 
 import datetime
@@ -120,7 +120,7 @@ def health():
                 "type": status["fawwas"]["type"],
                 "features": status["fawwas"]["n_features"],
                 "available": status["model_fawwas_loaded"],
-                "description": "Deteksi re-recording & keaslian vokal forensik (204 fitur akustik) menggunakan KNN."
+                "description": "Fitur glotal G3 (prosodi, perturbasi, HNR, harmonik) + fusi MFCC/LFCC; model beku v8 (SVM / RF / XGBoost)."
             }
         ]
     })
@@ -145,11 +145,11 @@ def models():
             {
                 "id": "fawwas",
                 "family": "Acoustic + Re-recording",
-                "kind": "KNN (N=5)",
+                "kind": "SVM / RF / XGBoost",
                 "dataset": "Forensic Re-rec Evaluation",
                 "seed": 2026,
-                "description": "Model Fawwas (KNN Forensik) - 204 Fitur Akustik Standarisasi",
-                "pipeline": "knn_forensic",
+                "description": "Model Fawwas (Glottal v8) - 204 Fitur Akustik Standarisasi",
+                "pipeline": "glottal_v8",
                 "available": status["model_fawwas_loaded"],
                 "unavailable_reason": status["fawwas"]["error"]
             }
@@ -354,7 +354,7 @@ def compare_sample(sample_id):
 
     req_json = request.get_json(silent=True) or {}
     alvin_model = request.form.get("alvin_model") or req_json.get("alvin_model", "alvin_B4")
-    fawwas_model = request.form.get("fawwas_model") or req_json.get("fawwas_model", "fawwas_rerec_knn_5")
+    fawwas_model = request.form.get("fawwas_model") or req_json.get("fawwas_model", "fawwas_glottal_g3")
 
     try:
         file_size_bytes = os.path.getsize(file_path)

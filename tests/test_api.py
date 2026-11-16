@@ -34,7 +34,7 @@ def test_health_endpoints():
     assert data["model_fawwas_loaded"] is True
     assert "alvin" in data and "fawwas" in data
     assert data["alvin"]["n_features"] == 280
-    assert data["fawwas"]["n_features"] == 204
+    assert data["fawwas"]["n_features"] == 44
 
     # API prefix version
     res_api = client.get("/api/health")
@@ -75,19 +75,19 @@ def test_detect_model_fawwas():
     res = client.post(
         "/detect",
         files={"file": ("fawwas_test.wav", wav_bytes, "audio/wav")},
-        data={"model": "fawwas", "threshold": "0.50"}
+        data={"model": "fawwas", "threshold": "0.40"}
     )
     assert res.status_code == 200, res.text
     result = res.json()
     assert result["status"] == "success"
     assert result["fileName"] == "fawwas_test.wav"
     assert "Model Fawwas" in result["modelName"]
-    assert "KNN" in result["modelName"]
+    assert "Glottal" in result["modelName"]
     assert 0.0 <= result["prob_authentic"] <= 1.0
     assert 0.0 <= result["prob_deepfake"] <= 1.0
     assert isinstance(result["isAuthentic"], bool)
     assert 0.0 <= result["confidenceScore"] <= 1.0
-    assert result["threshold"] == pytest.approx(0.50, abs=1e-4)
+    assert result["threshold"] == pytest.approx(0.40, abs=1e-4)
 
 
 def test_detect_invalid_file_format():

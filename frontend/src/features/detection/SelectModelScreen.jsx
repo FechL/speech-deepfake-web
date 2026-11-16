@@ -15,7 +15,7 @@ const SelectModelScreen = ({
   const { backendUrl, sensitivity, defaultResearcher, alvinModel, fawwasModel } = useApp();
   const [selectedResearcher, setSelectedResearcher] = useState(() => defaultResearcher || 'alvin');
   const currentAlvinModel = alvinModel || 'B4';
-  const currentFawwasModel = fawwasModel || 'rerec_knn_5';
+  const currentFawwasModel = fawwasModel || 'glottal_g3';
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logIndex, setLogIndex] = useState(0);
@@ -37,12 +37,12 @@ const SelectModelScreen = ({
   }[currentAlvinModel] || `${currentAlvinModel} (XGBoost)`;
 
   const fawwasModelName = {
-    rerec_knn_5: 'KNN Forensik · N=5',
-    rerec_knn_3: 'KNN Forensik · N=3',
-    rerec_knn_7: 'KNN Forensik · N=7',
-    glottal_g3: 'Glottal Waveform (G3)',
+    glottal_g3: 'Glottal G3 · SVM',
+    glottal_g3_rf: 'Glottal G3 · Random Forest',
+    glottal_g3_xgb: 'Glottal G3 · XGBoost',
+    glottal_mfcc_g3: 'Fusi MFCC + Glottal G3',
     glottal_lfcc_g3: 'Fusi LFCC + Glottal G3'
-  }[currentFawwasModel] || 'KNN Forensik (N=5)';
+  }[currentFawwasModel] || 'Glottal G3 · SVM';
 
   const alvinLogs = [
     'Menginisialisasi mesin deteksi forensik...',
@@ -57,9 +57,9 @@ const SelectModelScreen = ({
   const fawwasLogs = [
     'Menginisialisasi mesin deteksi forensik...',
     `Memuat konfigurasi Model Fawwas ${fawwasModelName}...`,
-    'Mengekstrak koefisien akustik re-recording (MFCC, LFCC, ZCR, RMS)...',
-    'Menjalankan standardisasi 204 fitur dengan StandardScaler...',
-    'Menghitung jarak tetangga terdekat vokal re-recording...',
+    'Mengekstrak fitur fonasi glotal (F0, jitter, shimmer, HNR, harmonik) & spektral...',
+    'Menerapkan imputasi median & standardisasi fitur dari data latih...',
+    'Menjalankan classifier beku Glottal v8 (SVM / RF / XGBoost)...',
     'Mengestimasi probabilitas keaslian suara rekaman...',
     'Menyusun laporan analisis forensik audio...'
   ];

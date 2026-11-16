@@ -69,40 +69,40 @@ const ALVIN_MODELS_INFO = {
 };
 
 const FAWWAS_MODELS_INFO = {
-  rerec_knn_5: {
-    name: 'Model Fawwas KNN Forensik (N=5)',
-    tag: 'Model Stabil Utama',
-    algorithm: 'KNN (N=5, Euclidean)',
-    features: '204 Fitur Akustik (MFCC, LFCC, ZCR, RMS, Delta)',
-    desc: 'Deteksi re-recording vokal (204 fitur akustik) berbasis KNN N=5.',
-  },
-  rerec_knn_3: {
-    name: 'Model Fawwas KNN Forensik (N=3)',
-    tag: 'Sensitif Jarak Dekat',
-    algorithm: 'KNN (N=3, Euclidean)',
-    features: '204 Fitur Akustik Forensik',
-    desc: 'KNN N=3 dengan respons sensitif anomali jarak dekat.',
-  },
-  rerec_knn_7: {
-    name: 'Model Fawwas KNN Forensik (N=7)',
-    tag: 'Voting Konservatif',
-    algorithm: 'KNN (N=7, Euclidean)',
-    features: '204 Fitur Akustik Forensik',
-    desc: 'KNN N=7 dengan pembobotan mayoritas konservatif.',
-  },
   glottal_g3: {
-    name: 'Model Fawwas Glottal Waveform (G3)',
-    tag: 'Inverse Filtering',
-    algorithm: 'Glottal Inverse Filtering (G3)',
-    features: 'Siklus Pembukaan/Penutupan Pita Suara',
-    desc: 'Inverse filtering gelombang aliran glotal vokal.',
+    name: 'Model Fawwas Glottal G3 (SVM)',
+    tag: 'Model Utama',
+    algorithm: 'SVM RBF (C=10), model beku v8',
+    features: '44 fitur glotal G3 (prosodi, perturbasi/HNR, harmonik)',
+    desc: 'Fitur fonasi glotal dengan SVM RBF; threshold EER dev beku 0,377.',
+  },
+  glottal_g3_rf: {
+    name: 'Model Fawwas Glottal G3 (Random Forest)',
+    tag: 'Glotal RF',
+    algorithm: 'Random Forest (200 pohon)',
+    features: '44 fitur glotal G3',
+    desc: 'Fitur glotal G3 dengan Random Forest; threshold beku 0,357.',
+  },
+  glottal_g3_xgb: {
+    name: 'Model Fawwas Glottal G3 (XGBoost)',
+    tag: 'Glotal XGB',
+    algorithm: 'XGBoost (200 pohon, depth 6)',
+    features: '44 fitur glotal G3',
+    desc: 'Fitur glotal G3 dengan XGBoost; threshold beku 0,447.',
+  },
+  glottal_mfcc_g3: {
+    name: 'Model Fawwas Fusi MFCC + Glottal G3',
+    tag: 'Fusi MFCC & Glotal',
+    algorithm: 'XGBoost',
+    features: 'MFCC 240 + Glottal G3 44 (284 fitur)',
+    desc: 'Fusi MFCC dan glotal; generalisasi eksternal terbaik di antara varian Fawwas.',
   },
   glottal_lfcc_g3: {
     name: 'Model Fawwas Fusi LFCC + Glottal G3',
-    tag: 'Fusi Filterbank & Glotal',
-    algorithm: 'Linear Filterbank + Glottal G3',
-    features: 'LFCC 40 + Glottal G3',
-    desc: 'Fusi multimodal filterbank linier dan glotal.',
+    tag: 'Fusi LFCC & Glotal',
+    algorithm: 'XGBoost',
+    features: 'LFCC 240 + Glottal G3 44 (284 fitur)',
+    desc: 'Fusi LFCC dan glotal; akurat pada data internal namun kurang stabil pada domain MLAAD.',
   }
 };
 
@@ -168,7 +168,7 @@ const SettingsScreen = () => {
           <h3 style={styles.researcherName}>Model Fawwas · Fawwas Aliy</h3>
         </div>
         <button type="button" aria-expanded={expandedResearcher === 'fawwas'} onClick={() => setExpandedResearcher(expandedResearcher === 'fawwas' ? null : 'fawwas')} style={{ ...styles.dropdownTrigger, ...styles.dropdownTriggerFawwas }}>
-          <span><small>Model terpilih</small><strong>{FAWWAS_MODELS_INFO[fawwasModel]?.name || FAWWAS_MODELS_INFO.rerec_knn_5.name}</strong></span>
+          <span><small>Model terpilih</small><strong>{FAWWAS_MODELS_INFO[fawwasModel]?.name || FAWWAS_MODELS_INFO.glottal_g3.name}</strong></span>
           <span style={{ ...styles.chevron, color: '#00A572', transform: expandedResearcher === 'fawwas' ? 'rotate(180deg)' : 'none' }}>⌄</span>
         </button>
         {expandedResearcher === 'fawwas' && <div style={styles.modelCatalog}>
