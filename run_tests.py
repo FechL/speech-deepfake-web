@@ -27,7 +27,7 @@ class DeepGuardEngineTestCase(unittest.TestCase):
         self.assertTrue(status["model_alvin_loaded"], "Model Alvin should be loaded")
         self.assertTrue(status["model_fawwas_loaded"], "Model Fawwas should be loaded")
         self.assertEqual(status["alvin"]["n_features"], 280)
-        self.assertEqual(status["fawwas"]["n_features"], 204)
+        self.assertEqual(status["fawwas"]["n_features"], 44)
 
     def test_flask_health_endpoint(self):
         with flask_app.test_client() as client:
@@ -90,7 +90,7 @@ class DeepGuardEngineTestCase(unittest.TestCase):
             self.assertEqual(data["status"], "success")
             self.assertEqual(data["fileName"], "fawwas_sample.wav")
             self.assertIn("Model Fawwas", data["modelName"])
-            self.assertIn("KNN", data["modelName"])
+            self.assertIn("Glottal", data["modelName"])
             self.assertGreaterEqual(data["prob_authentic"], 0.0)
             self.assertLessEqual(data["prob_authentic"], 1.0)
             self.assertGreaterEqual(data["prob_deepfake"], 0.0)
@@ -116,22 +116,22 @@ class DeepGuardEngineTestCase(unittest.TestCase):
             self.assertIn("B0", data["modelName"])
             print("[PASS] Model Alvin B0 (SVM) passed:", data["modelName"])
 
-    def test_detect_fawwas_knn3(self):
+    def test_detect_fawwas_glottal_rf(self):
         wav_bytes = generate_wav(seconds=2.0)
         with flask_app.test_client() as client:
             res = client.post(
                 "/detect",
                 data={
                     "file": (io.BytesIO(wav_bytes), "fawwas_knn3_sample.wav"),
-                    "model": "fawwas_rerec_knn_3",
+                    "model": "fawwas_glottal_g3_rf",
                 },
                 content_type="multipart/form-data"
             )
             self.assertEqual(res.status_code, 200, res.data.decode())
             data = res.get_json()
             self.assertEqual(data["status"], "success")
-            self.assertIn("N=3", data["modelName"])
-            print("[PASS] Model Fawwas KNN N=3 passed:", data["modelName"])
+            self.assertIn("Random Forest", data["modelName"])
+            print("[PASS] Model Fawwas Glottal RF passed:", data["modelName"])
 
     def test_samples_library_and_reevaluation(self):
         wav_bytes = generate_wav(seconds=2.0)
@@ -166,7 +166,7 @@ class DeepGuardEngineTestCase(unittest.TestCase):
             # 4. Re-evaluate with Fawwas without re-uploading
             res_eval = client.post(
                 f"/api/samples/{sample_id}/evaluate",
-                json={"model": "fawwas_rerec_knn_5"}
+                json={"model": "fawwas_glottal_g3"}
             )
             self.assertEqual(res_eval.status_code, 200)
             eval_data = res_eval.get_json()
@@ -176,7 +176,7 @@ class DeepGuardEngineTestCase(unittest.TestCase):
             # 5. One-shot comparison
             res_comp = client.post(
                 f"/api/samples/{sample_id}/compare",
-                json={"alvin_model": "alvin_B0", "fawwas_model": "fawwas_rerec_knn_3"}
+                json={"alvin_model": "alvin_B0", "fawwas_model": "fawwas_glottal_g3_rf"}
             )
             self.assertEqual(res_comp.status_code, 200)
             comp_data = res_comp.get_json()

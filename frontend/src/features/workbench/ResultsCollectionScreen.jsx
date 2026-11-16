@@ -16,9 +16,11 @@ const ALVIN_OPTIONS = [
 ];
 
 const FAWWAS_OPTIONS = [
-  { id: 'fawwas_rerec_knn_5', label: 'KNN · N=5' },
-  { id: 'fawwas_rerec_knn_3', label: 'KNN · N=3' },
-  { id: 'fawwas_rerec_knn_7', label: 'KNN · N=7' },
+  { id: 'fawwas_glottal_g3', label: 'Glottal G3 · SVM' },
+  { id: 'fawwas_glottal_g3_rf', label: 'Glottal G3 · RF' },
+  { id: 'fawwas_glottal_g3_xgb', label: 'Glottal G3 · XGBoost' },
+  { id: 'fawwas_glottal_mfcc_g3', label: 'MFCC + G3 · XGBoost' },
+  { id: 'fawwas_glottal_lfcc_g3', label: 'LFCC + G3 · XGBoost' },
 ];
 
 const ResultsCollectionScreen = ({ onStartNewDetection, onViewReport }) => {
@@ -33,7 +35,7 @@ const ResultsCollectionScreen = ({ onStartNewDetection, onViewReport }) => {
   const [retryModelSample, setRetryModelSample] = useState(null);
   const [retryFamily, setRetryFamily] = useState('alvin');
   const [selectedAlvinChoice, setSelectedAlvinChoice] = useState('alvin_B4');
-  const [selectedFawwasChoice, setSelectedFawwasChoice] = useState('fawwas_rerec_knn_5');
+  const [selectedFawwasChoice, setSelectedFawwasChoice] = useState('fawwas_glottal_g3');
   const [evaluatingSampleId, setEvaluatingSampleId] = useState(null);
   const [evaluatingAction, setEvaluatingAction] = useState('');
 
@@ -73,6 +75,30 @@ const ResultsCollectionScreen = ({ onStartNewDetection, onViewReport }) => {
       setSamples((prev) => prev.map((sample) => sample.id === sampleId ? data.sample : sample));
     } catch (error) {
       setErrorMessage(`Gagal menjalankan model: ${error.message}`);
+    } finally {
+      setEvaluatingSampleId(null);
+      setEvaluatingAction('');
+    }
+  };
+
+  const handleEvaluateAll = async (sampleId) => {
+    const all = [...ALVIN_OPTIONS, ...FAWWAS_OPTIONS];
+    setEvaluatingSampleId(sampleId);
+    setErrorMessage('');
+    try {
+      for (let i = 0; i < all.length; i += 1) {
+        setEvaluatingAction(`Menguji ${i + 1}/${all.length}...`);
+        const res = await fetch(`${backendUrl}/api/samples/${sampleId}/evaluate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: all[i].id }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.status !== 'success') throw new Error(`${all[i].label}: ${data.message || 'gagal'}`);
+        setSamples((prev) => prev.map((sample) => sample.id === sampleId ? data.sample : sample));
+      }
+    } catch (error) {
+      setErrorMessage(`Gagal menjalankan semua model: ${error.message}`);
     } finally {
       setEvaluatingSampleId(null);
       setEvaluatingAction('');
@@ -250,44 +276,39 @@ const ResultsCollectionScreen = ({ onStartNewDetection, onViewReport }) => {
 
                 {/* Evaluations Matrix (Results per Model on this Audio) */}
                 <div style={styles.evaluationsSection}>
-                  <div style={styles.evalCardsGrid}>
-                    {evals.map((entry, idx) => {
-                      const isAuth = entry.isAuthentic;
-                      const statusColor = isAuth ? (isDark ? '#4EDEA3' : '#059669') : '#FF4D4D';
-                      const statusBorder = 'var(--border)';
-
-                      return (
-                        <div
-                          key={idx}
-                          style={{
-                            ...styles.evalCard,
-                            borderColor: statusBorder,
-                          }}
-                        >
-                          <div style={styles.evalCardTop}>
-                            <span style={styles.evalModelName}>{entry.modelName}</span>
-                            <span
-                              style={{
-                                ...styles.evalBadge,
-                                color: statusColor,
-                                borderColor: statusBorder,
-                              }}
-                            >
-                              {isAuth ? 'ASLI' : 'DEEPFAKE'}
-                            </span>
-                          </div>
-
-                          <span style={{ ...styles.metricVal, color: statusColor }}>{Math.round((entry.confidenceScore || 0) * 100)}%</span>
-                          <button onClick={() => handleOpenReportFromEval(sample, entry)} style={styles.openReportMiniBtn}>Laporan</button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {[
+                    { key: 'alvin', label: 'ALVIN', color: '#3B82F6', items: evals.filter((e) => /alvin/i.test(e.modelName)) },
+                    { key: 'fawwas', label: 'FAWWAS', color: '#00A572', items: evals.filter((e) => /fawwas/i.test(e.modelName)) },
+                  ].filter((group) => group.items.length > 0).map((group) => (
+                    <div key={group.key} style={{ ...styles.modelGroup, borderLeftColor: group.color }}>
+                      <div style={{ ...styles.groupLabel, color: group.color, background: `${group.color}1A` }}>{group.label}</div>
+                      <div style={styles.evalCardsGrid}>
+                        {group.items.map((entry, idx) => {
+                          const isAuth = entry.isAuthentic;
+                          const statusColor = isAuth ? (isDark ? '#4EDEA3' : '#059669') : '#FF4D4D';
+                          const shortName = entry.modelName.replace(/^Model (Alvin|Fawwas)\s*/i, '').replace(/^\((.*)\)$/, '$1');
+                          return (
+                            <div key={idx} style={styles.evalCard}>
+                              <span style={styles.evalModelName}>{shortName}</span>
+                              <span style={{ ...styles.evalBadge, color: statusColor, borderColor: 'var(--border)' }}>
+                                {isAuth ? 'ASLI' : 'DEEPFAKE'}
+                              </span>
+                              <span style={{ ...styles.metricVal, color: statusColor }}>{Math.round((entry.confidenceScore || 0) * 100)}%</span>
+                              <button onClick={() => handleOpenReportFromEval(sample, entry)} style={styles.openReportMiniBtn}>Laporan</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div style={styles.actionToolbar}>
                   <button type="button" onClick={() => { setRetryModelSample(sample); setRetryFamily('alvin'); }} disabled={evaluatingSampleId === sample.id} style={styles.retryButton}>
                     {evaluatingSampleId === sample.id ? evaluatingAction : 'Uji dengan Model Lain'}
+                  </button>
+                  <button type="button" onClick={() => handleEvaluateAll(sample.id)} disabled={evaluatingSampleId === sample.id} style={styles.allModelsButton}>
+                    Deteksi dengan Semua Model
                   </button>
                 </div>
 
@@ -631,7 +652,7 @@ const styles = {
     padding: '12px 0',
     borderBottom: '1px solid var(--border)',
     display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) auto auto',
+    gridTemplateColumns: 'minmax(0, 1fr) auto 52px auto',
     alignItems: 'center',
     gap: '16px',
   },
@@ -687,10 +708,14 @@ const styles = {
   actionToolbar: {
     background: 'transparent',
     display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: '8px',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '10px',
   },
+  modelGroup: { borderLeft: '3px solid', paddingLeft: '14px', marginBottom: '14px' },
+  groupLabel: { display: 'inline-block', fontSize: '0.68rem', fontWeight: '800', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)', padding: '3px 10px', borderRadius: '999px', marginTop: '4px' },
+  allModelsButton: { padding: '9px 14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--primary)', color: '#fff', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' },
   retryButton: { padding: '9px 14px', borderRadius: '10px', border: '1px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' },
   actionToolbarHeader: {
     fontSize: '0.7rem',

@@ -35,7 +35,8 @@ export const AppProvider = ({ children }) => {
   });
 
   const [fawwasModel, setFawwasModel] = useState(() => {
-    return localStorage.getItem('dg_fawwas_model') || 'rerec_knn_5';
+    const saved = localStorage.getItem('dg_fawwas_model');
+    return saved && saved.startsWith('glottal_') ? saved : 'glottal_g3';
   });
 
   const [defaultResearcher, setDefaultResearcher] = useState(() => {

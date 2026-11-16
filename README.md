@@ -3,7 +3,7 @@
 Aplikasi web modern untuk verifikasi forensik audio dan klasifikasi deteksi speech deepfake. Antarmuka menggunakan **UI/UX DeepGuard** (Glassmorphism Cyberpunk) yang telah disetujui, terintegrasi penuh dengan dua mesin model AI utama:
 
 1. **Model Alvin B4 (XGBoost)**: Baseline spektral residual modulasi (280 fitur statistik MFCC & LFCC) untuk deteksi speech deepfake.
-2. **Model Fawwas (KNN Forensik)**: Model stabil berbasis K-Nearest Neighbors (204 fitur akustik: MFCC, LFCC, ZCR, RMS, Delta MFCC) untuk deteksi rekaman ulang (*re-recording*) dan keaslian forensik vokal.
+2. **Model Fawwas (Glottal v8)**: Model beku hasil pipeline `forensic_reference_glottal_v8` (ASVspoof 2019 LA + ADDITIONAL) yang memakai fitur fonasi glotal G3 (44 fitur) dan fusi dengan MFCC/LFCC; classifier SVM / Random Forest / XGBoost.
 
 ---
 
@@ -56,14 +56,22 @@ Hasil build produksi otomatis dikompilasi ke folder `dist/`.
 
 ---
 
+## 📁 Struktur Preprocessing
+
+Preprocessing tiap model berada di paket sendiri dengan README masing-masing:
+`backend/preprocessing/alvin/`, `backend/preprocessing/fawwas/`, dan langkah bersama `backend/preprocessing/audio_loading.py`
+(lihat `backend/preprocessing/README.md`).
+
+---
+
 ## 🧠 Struktur Model & Perannya
 
 | Model | Algoritma | Fitur | Peran Forensik | File Checkpoint |
 |---|---|---|---|---|
 | **Model Alvin** | XGBoost (B4) | 280 Fitur (MFCC 20 stat + Delta + Delta2 + LFCC 20 mean/std) | Deteksi manipulasi speech deepfake vokal & kloning AI | `backend/checkpoints/alvin/models_checkpoints_alvin.zip` (`B4_seed42.joblib`) |
-| **Model Fawwas** | Arsip eksperimen seed 2026–2028 (MFCC/LFCC/glotal; LR, SVM, RF) | Skema fitur tercantum dalam `frozen_selection_v6.json` di setiap arsip | Kandidat riset forensik suara | `backend/checkpoints/fawwas/` |
+| **Model Fawwas** | Glottal v8 (SVM, RF, XGBoost; seed 2026) | 44 fitur glotal G3, atau fusi MFCC/LFCC 240 + G3 (284 fitur) | Bukti fonasi glotal untuk deteksi deepfake | `backend/checkpoints/fawwas/fawwas_glottal_v8_bundle.zip` |
 
-Arsip checkpoint Alvin berukuran sekitar 196 MB dan arsip Fawwas sekitar 92–94 MB per seed. Keduanya dikonfigurasi menggunakan Git LFS (`.gitattributes`) agar dapat disertakan di GitHub. Arsip Fawwas berisi checkpoint dan metadata eksperimen, tetapi tidak menyertakan implementasi ekstraksi fitur audio; arsip tersebut belum otomatis digunakan oleh inference runtime. Lihat `backend/checkpoints/fawwas/README.md`.
+Bundel Fawwas (~49 MB) berisi model beku seed 2026/2027/2028, ekstraktor fitur (salinannya ada di `backend/preprocessing/fawwas/`), konfigurasi dan README; runtime memakai seed 2026 (ubah dengan env `DEEPGUARD_FAWWAS_SEED`). Seed 2026/2027/2028 v6 lama pada folder yang sama tidak lagi dipakai. Catatan: fitur glotal murni generalisasinya lemah pada data eksternal (AUC MLAAD ≈ 0,54; DF ≈ 0,58) — lihat README di dalam bundel.
 
 Kedua model bekerja secara mandiri. Varian model dipilih dari menu **Pengaturan** dan digunakan pada layar deteksi.
 
@@ -82,11 +90,11 @@ Nilai threshold disimpan di dokumentasi ini sebagai referensi; nilai tersebut ti
 | Alvin E4a | 0.4028 (40.3%) |
 | Alvin E4b | 0.4766 (47.7%) |
 | Alvin E4e | 0.4249 (42.5%) |
-| Fawwas KNN N=5 | 0.5000 (50.0%) |
-| Fawwas KNN N=3 | 0.5000 (50.0%) |
-| Fawwas KNN N=7 | 0.5000 (50.0%) |
-| Fawwas Glottal G3 | 0.5000 (50.0%) |
-| Fawwas LFCC + Glottal G3 | 0.5000 (50.0%) |
+| Fawwas Glottal G3 · SVM (`glottal_g3`) | 0.3767 |
+| Fawwas Glottal G3 · RF (`glottal_g3_rf`) | 0.3567 |
+| Fawwas Glottal G3 · XGBoost (`glottal_g3_xgb`) | 0.4474 |
+| Fawwas MFCC + G3 · XGBoost (`glottal_mfcc_g3`) | 0.4468 |
+| Fawwas LFCC + G3 · XGBoost (`glottal_lfcc_g3`) | 0.4473 |
 
 ---
 

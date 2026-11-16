@@ -2,7 +2,7 @@
 DeepGuard Core Model Engine
 Unified inference engine supporting:
   - Model Alvin B4 (XGBoost - 280 features MFCC + LFCC)
-  - Model Fawwas (KNN Forensik - 204 features MFCC, LFCC, ZCR, RMS, Delta MFCC)
+  - Model Fawwas (Glottal v8 - fitur glotal G3 + MFCC/LFCC; SVM / RF / XGBoost beku)
 """
 
 import io
@@ -24,7 +24,10 @@ if "LOKY_MAX_CPU_COUNT" not in os.environ:
 import joblib
 import librosa
 import numpy as np
-from scipy.fftpack import dct
+
+from .preprocessing.audio_loading import load_audio
+from .preprocessing.alvin import extract_alvin_features
+from .preprocessing.fawwas import FawwasGlottal, VARIANTS as FAWWAS_VARIANTS, resolve_variant as resolve_fawwas_variant
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -44,32 +47,6 @@ ALVIN_ARCHIVE_CANDIDATES = [
     PROJECT_ROOT.parent / "Website_lama" / "models_checkpoints.zip",
 ]
 ALVIN_MODEL_FILENAME = "B4_seed42.joblib"
-ALVIN_N_COEFFS = 20
-ALVIN_N_FFT = 512
-ALVIN_HOP_LENGTH = 160
-
-# ─────────────────────────────────────────────────────────────
-# Model Fawwas Specifications (204 features)
-# ─────────────────────────────────────────────────────────────
-FAWWAS_MODEL_CANDIDATES = [
-    MODELS_DIR / "rerec_KNN_N=5.pkl",
-    BASE_DIR / "rerec_KNN_N=5.pkl",
-    PROJECT_ROOT.parent / "Website_lama" / "backend" / "rerec_KNN_N=5.pkl",
-]
-FAWWAS_SCALER_CANDIDATES = [
-    MODELS_DIR / "knn_rerec_scaler.joblib",
-    BASE_DIR / "knn_rerec_scaler.joblib",
-    PROJECT_ROOT.parent / "Website_lama" / "backend" / "knn_rerec_scaler.joblib",
-]
-FAWWAS_ARCHIVE_CANDIDATES = [
-    *((BASE_DIR / "checkpoints" / "fawwas").glob("*.zip")),
-]
-FAWWAS_TARGET_LEN = 48_000  # 3 seconds @ 16kHz
-FAWWAS_N_MFCC = 40
-FAWWAS_N_LFCC = 40
-FAWWAS_N_FFT = 512
-FAWWAS_HOP = 160
-
 
 class DeepGuardEngine:
     def __init__(self):
@@ -80,8 +57,7 @@ class DeepGuardEngine:
         self.alvin_threshold: float = 0.38
         self.alvin_error: Optional[str] = None
 
-        self.fawwas_model: Any = None
-        self.fawwas_scaler: Any = None
+        self.fawwas: Optional[FawwasGlottal] = None
         self.fawwas_error: Optional[str] = None
 
         self._load_alvin_model()
@@ -137,176 +113,19 @@ class DeepGuardEngine:
             print(f"[!] Model Alvin gagal dimuat: {exc}")
 
     def _load_fawwas_model(self):
-        model_path = next((p for p in FAWWAS_MODEL_CANDIDATES if p.exists()), None)
-        scaler_path = next((p for p in FAWWAS_SCALER_CANDIDATES if p.exists()), None)
-
-        if not model_path or not scaler_path:
-            has_research_archives = any(path.is_file() for path in FAWWAS_ARCHIVE_CANDIDATES)
-            self.fawwas_error = (
-                "Arsip riset Fawwas tersedia, tetapi arsip ini tidak berisi extractor audio dan checkpoint KNN yang dibutuhkan runtime."
-                if has_research_archives
-                else "File model rerec_KNN_N=5.pkl atau scaler tidak ditemukan."
-            )
-            print(f"[!] Model Fawwas: {self.fawwas_error}")
-            return
-
         try:
-            self.fawwas_model = joblib.load(model_path)
-            self.fawwas_scaler = joblib.load(scaler_path)
-            self.fawwas_error = None
-            print(
-                f"[*] Model Fawwas (KNN Forensik) siap: "
-                f"n_neighbors={getattr(self.fawwas_model, 'n_neighbors', 5)}, "
-                f"{self.fawwas_model.n_features_in_} fitur."
-            )
+            fawwas = FawwasGlottal()
         except Exception as exc:
             self.fawwas_error = str(exc)
             print(f"[!] Model Fawwas gagal dimuat: {exc}")
-
-    # ─────────────────────────────────────────────────────────────
-    # Alvin Feature Extraction Helpers (280 features)
-    # ─────────────────────────────────────────────────────────────
-    @staticmethod
-    def _alvin_aggregate(matrix: np.ndarray) -> np.ndarray:
-        return np.concatenate([
-            np.mean(matrix, axis=1),
-            np.std(matrix, axis=1),
-            np.percentile(matrix, 25, axis=1),
-            np.percentile(matrix, 75, axis=1),
-        ])
-
-    @staticmethod
-    def _alvin_linear_filterbank(sr: int, n_fft: int, n_filters: int = ALVIN_N_COEFFS) -> np.ndarray:
-        frequencies = np.linspace(0, sr / 2, n_filters + 2)
-        bins = np.floor((n_fft + 1) * frequencies / sr).astype(int)
-        filters = np.zeros((n_filters, n_fft // 2 + 1))
-        for index in range(n_filters):
-            left, center, right = bins[index : index + 3]
-            if center > left:
-                filters[index, left:center] = (np.arange(left, center) - left) / (center - left)
-            if right > center:
-                filters[index, center:right] = (right - np.arange(center, right)) / (right - center)
-        return filters
-
-    def extract_alvin_features(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
-        if audio.ndim > 1:
-            audio = librosa.to_mono(audio)
-        if sample_rate != TARGET_SR:
-            audio = librosa.resample(audio, orig_sr=sample_rate, target_sr=TARGET_SR)
-            sample_rate = TARGET_SR
-        if audio.size < int(0.25 * sample_rate):
-            raise ValueError("Durasi audio minimal 0,25 detik.")
-        if not np.isfinite(audio).all():
-            raise ValueError("Audio mengandung sampel yang tidak valid.")
-
-        audio = audio[: sample_rate * 300]
-        mfcc = librosa.feature.mfcc(
-            y=audio,
-            sr=sample_rate,
-            n_mfcc=ALVIN_N_COEFFS,
-            n_fft=ALVIN_N_FFT,
-            hop_length=ALVIN_HOP_LENGTH,
-        )
-        delta_width = min(9, mfcc.shape[1] if mfcc.shape[1] % 2 else mfcc.shape[1] - 1)
-        if delta_width < 3:
-            raise ValueError("Audio terlalu pendek untuk ekstraksi fitur Alvin.")
-        mfcc_delta = librosa.feature.delta(mfcc, width=delta_width)
-        mfcc_delta2 = librosa.feature.delta(mfcc, order=2, width=delta_width)
-
-        spectrum = np.abs(librosa.stft(audio, n_fft=ALVIN_N_FFT, hop_length=ALVIN_HOP_LENGTH)) ** 2
-        energies = self._alvin_linear_filterbank(sample_rate, ALVIN_N_FFT) @ spectrum
-        log_energies = np.log(np.maximum(energies, np.finfo(float).eps))
-        lfcc = dct(log_energies, type=2, axis=0, norm="ortho")[:ALVIN_N_COEFFS]
-
-        features = np.concatenate([
-            self._alvin_aggregate(mfcc),
-            self._alvin_aggregate(mfcc_delta),
-            self._alvin_aggregate(mfcc_delta2),
-            np.mean(lfcc, axis=1),
-            np.std(lfcc, axis=1),
-        ]).astype(np.float64)
-
-        if features.size != len(self.alvin_features):
-            raise ValueError(
-                f"Jumlah fitur tidak cocok: {features.size}, seharusnya {len(self.alvin_features)}."
-            )
-        if not np.isfinite(features).all():
-            raise ValueError("Ekstraksi menghasilkan fitur yang tidak valid.")
-        return features.reshape(1, -1)
-
-    # ─────────────────────────────────────────────────────────────
-    # Fawwas Feature Extraction Helpers (204 features)
-    # ─────────────────────────────────────────────────────────────
-    @staticmethod
-    def _fawwas_linear_filterbank(sr: int, n_fft: int, n_filters: int = FAWWAS_N_LFCC) -> np.ndarray:
-        hz_points = np.linspace(0.0, sr / 2.0, n_filters + 2)
-        bin_points = np.floor((n_fft + 1) * hz_points / sr).astype(int)
-        filters = np.zeros((n_filters, n_fft // 2 + 1))
-        for i in range(n_filters):
-            left, center, right = bin_points[i], bin_points[i + 1], bin_points[i + 2]
-            if center > left:
-                filters[i, left:center] = (np.arange(left, center) - left) / (center - left)
-            if right > center:
-                filters[i, center:right] = (right - np.arange(center, right)) / (right - center)
-        return filters
-
-    def extract_fawwas_features(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
-        if audio.ndim > 1:
-            audio = librosa.to_mono(audio)
-        if sample_rate != TARGET_SR:
-            audio = librosa.resample(audio, orig_sr=sample_rate, target_sr=TARGET_SR)
-            sample_rate = TARGET_SR
-
-        if len(audio) > FAWWAS_TARGET_LEN:
-            y = audio[:FAWWAS_TARGET_LEN]
+            return
+        if fawwas.loaded:
+            self.fawwas = fawwas
+            self.fawwas_error = None
+            print(f"[*] Model Fawwas (Glottal v8, profil {fawwas.run_id}) siap: {len(FAWWAS_VARIANTS)} varian.")
         else:
-            y = np.pad(audio, (0, FAWWAS_TARGET_LEN - len(audio)))
-
-        # 1. MFCC 40 (mean 40 + std 40 = 80)
-        mfcc = librosa.feature.mfcc(y=y, sr=sample_rate, n_mfcc=FAWWAS_N_MFCC)
-        mfcc_mean = np.mean(mfcc, axis=1)
-        mfcc_std = np.std(mfcc, axis=1)
-
-        # 2. LFCC 40 (mean 40 + std 40 = 80)
-        D = librosa.stft(y, n_fft=FAWWAS_N_FFT, hop_length=FAWWAS_HOP)
-        power_spec = np.abs(D) ** 2
-        lf_matrix = self._fawwas_linear_filterbank(sr=sample_rate, n_fft=FAWWAS_N_FFT, n_filters=FAWWAS_N_LFCC)
-        lf_energies = np.dot(lf_matrix, power_spec)
-        log_lf = librosa.power_to_db(lf_energies)
-        lfcc = dct(log_lf, type=2, axis=0, norm="ortho")[:FAWWAS_N_LFCC]
-        lfcc_mean = np.mean(lfcc, axis=1)
-        lfcc_std = np.std(lfcc, axis=1)
-
-        # 3. ZCR (mean 1 + std 1 = 2)
-        zcr = librosa.feature.zero_crossing_rate(y)
-        zcr_mean = np.mean(zcr)
-        zcr_std = np.std(zcr)
-
-        # 4. RMS (mean 1 + std 1 = 2)
-        rms = librosa.feature.rms(y=y)
-        rms_mean = np.mean(rms)
-        rms_std = np.std(rms)
-
-        # 5. Delta MFCC (mean 40)
-        delta_mfcc = librosa.feature.delta(mfcc)
-        delta_mfcc_mean = np.mean(delta_mfcc, axis=1)
-
-        raw_features = np.concatenate([
-            mfcc_mean,
-            mfcc_std,
-            lfcc_mean,
-            lfcc_std,
-            [zcr_mean, zcr_std],
-            [rms_mean, rms_std],
-            delta_mfcc_mean,
-        ]).astype(np.float64)
-
-        if self.fawwas_scaler is not None:
-            scaled = self.fawwas_scaler.transform(raw_features.reshape(1, -1))
-        else:
-            scaled = ((raw_features - raw_features.mean()) / (raw_features.std() + 1e-8)).reshape(1, -1)
-
-        return scaled
+            self.fawwas_error = fawwas.error
+            print(f"[!] Model Fawwas: {fawwas.error}")
 
     # ─────────────────────────────────────────────────────────────
     # Inference Router
@@ -319,34 +138,8 @@ class DeepGuardEngine:
         file_name: str = "audio.wav",
         file_size_bytes: int = 0
     ) -> Dict[str, Any]:
-        # Robust audio loading with multiple fallbacks
-        try:
-            audio, sample_rate = librosa.load(audio_path, sr=None, mono=True)
-        except Exception as load_err:
-            try:
-                import soundfile as sf
-                audio, sample_rate = sf.read(audio_path)
-                if audio.ndim > 1:
-                    audio = np.mean(audio, axis=1)
-                audio = audio.astype(np.float32)
-            except Exception:
-                try:
-                    from scipy.io import wavfile
-                    sample_rate, audio = wavfile.read(audio_path)
-                    if audio.ndim > 1:
-                        audio = np.mean(audio, axis=1)
-                    if audio.dtype == np.int16:
-                        audio = audio.astype(np.float32) / 32768.0
-                    else:
-                        audio = audio.astype(np.float32)
-                except Exception:
-                    raise ValueError(
-                        f"Format audio tidak dapat dibaca: {load_err}. "
-                        "Pastikan berkas adalah audio yang valid (WAV, MP3, M4A, OGG) dan durasi minimal 1 detik."
-                    )
-
-        if audio is None or len(audio) < int(0.25 * sample_rate):
-            raise ValueError("Durasi audio terlalu singkat. Diperlukan rekaman minimal 0.5–1 detik.")
+        # Shared preprocessing step 1 (see backend/preprocessing/audio_loading.py)
+        audio, sample_rate = load_audio(audio_path)
 
         duration_seconds = float(librosa.get_duration(y=audio, sr=sample_rate))
         minutes = int(duration_seconds // 60)
@@ -357,32 +150,19 @@ class DeepGuardEngine:
         normalized_choice = str(model_choice).lower().strip()
 
         if "fawwas" in normalized_choice:
-            if self.fawwas_model is None:
-                raise RuntimeError(
-                    f"Model Fawwas belum siap. {self.fawwas_error or 'Periksa file model KNN.'}"
-                )
+            if self.fawwas is None:
+                raise RuntimeError(f"Model Fawwas belum siap. {self.fawwas_error or 'Periksa bundel model Fawwas.'}")
 
-            # Determine KNN neighbors count if specified
-            n_neighbors = 5
-            knn_tag = "N=5"
-            if "knn_3" in normalized_choice or "n=3" in normalized_choice:
-                n_neighbors = 3
-                knn_tag = "N=3 (Sensitif)"
-            elif "knn_7" in normalized_choice or "n=7" in normalized_choice:
-                n_neighbors = 7
-                knn_tag = "N=7 (Konservatif)"
+            variant = resolve_fawwas_variant(normalized_choice)
+            _, label, _, _ = FAWWAS_VARIANTS[variant]
+            result = self.fawwas.score(audio, sample_rate, variant)
+            prob_deepfake = result["prob_deepfake"]
+            prob_authentic = 1.0 - prob_deepfake
+            checkpoint_threshold = result["threshold"]
 
-            if hasattr(self.fawwas_model, "n_neighbors"):
-                self.fawwas_model.n_neighbors = n_neighbors
-
-            features = self.extract_fawwas_features(audio, sample_rate)
-            probabilities = self.fawwas_model.predict_proba(features)[0]
-            prob_authentic = float(probabilities[0])
-            prob_deepfake = float(probabilities[1])
-
-            threshold_used = requested_threshold if requested_threshold is not None else 0.50
+            threshold_used = requested_threshold if requested_threshold is not None else checkpoint_threshold
             if not 0.05 <= threshold_used <= 0.95:
-                threshold_used = 0.50
+                threshold_used = checkpoint_threshold
 
             is_authentic = prob_deepfake < threshold_used
             confidence = prob_authentic if is_authentic else prob_deepfake
@@ -398,10 +178,10 @@ class DeepGuardEngine:
                 "prob_deepfake": prob_deepfake,
                 "isAuthentic": is_authentic,
                 "confidenceScore": confidence,
-                "modelName": f"Model Fawwas (KNN {knn_tag})",
+                "modelName": f"Model Fawwas ({label})",
                 "threshold": threshold_used,
-                "checkpointThreshold": 0.50,
-                "engine": f"KNN Forensik ({knn_tag} · 204 Fitur Akustik)",
+                "checkpointThreshold": checkpoint_threshold,
+                "engine": f"{result['kind'].upper()} Glottal v8 ({result['n_features']} Fitur)",
             }
 
         else:
@@ -424,14 +204,11 @@ class DeepGuardEngine:
             req_cols = cp["features"]
             eer_threshold = float(cp.get("val_threshold", 0.3793))
 
-            features_raw = self.extract_alvin_features(audio, sample_rate)
-            
-            # Check if features match Alvin's spectral family
-            if set(req_cols).issubset(set(self.alvin_features)):
-                df_all = pd.DataFrame(features_raw, columns=self.alvin_features)
-                input_df = df_all[req_cols]
-            else:
-                input_df = features_raw[:, :len(req_cols)]
+            feats = extract_alvin_features(audio, sample_rate)
+            missing = [c for c in req_cols if c not in feats]
+            if missing:
+                raise RuntimeError(f"Fitur model Alvin {alvin_id} tidak tersedia dari preprocessing: {missing[:3]}...")
+            input_df = pd.DataFrame([{c: feats[c] for c in req_cols}], columns=req_cols)
 
             probabilities = model.predict_proba(input_df)[0]
             classes = list(model.classes_)
@@ -473,9 +250,9 @@ class DeepGuardEngine:
 
     def get_health_status(self) -> Dict[str, Any]:
         return {
-            "status": "healthy" if (self.alvin_model or self.fawwas_model) else "degraded",
+            "status": "healthy" if (self.alvin_model or self.fawwas) else "degraded",
             "model_alvin_loaded": self.alvin_model is not None,
-            "model_fawwas_loaded": self.fawwas_model is not None,
+            "model_fawwas_loaded": self.fawwas is not None,
             "alvin": {
                 "name": f"Model Alvin {self.alvin_checkpoint['experiment_id']}" if self.alvin_checkpoint else "Model Alvin B4",
                 "type": self.alvin_checkpoint.get("model_type", "xgb") if self.alvin_checkpoint else "xgb",
@@ -485,11 +262,12 @@ class DeepGuardEngine:
                 "error": self.alvin_error,
             },
             "fawwas": {
-                "name": "Model Fawwas (KNN Forensik)",
-                "type": "knn",
-                "feature_group": "acoustic_rerec",
-                "n_features": self.fawwas_model.n_features_in_ if self.fawwas_model else 204,
-                "decision_threshold": 0.50,
+                "name": "Model Fawwas (Glottal v8)",
+                "type": "glottal_v8",
+                "feature_group": "glottal_g3",
+                "n_features": 44,
+                "decision_threshold": self.fawwas.systems[FAWWAS_VARIANTS["glottal_g3"][0]]["threshold"] if self.fawwas else 0.3767,
+                "variants": [{"id": k, "label": v[1], "tag": v[2]} for k, v in FAWWAS_VARIANTS.items()],
                 "error": self.fawwas_error,
             }
         }
