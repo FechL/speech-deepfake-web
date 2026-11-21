@@ -49,6 +49,9 @@ ALVIN_ARCHIVE_CANDIDATES = [
     PROJECT_ROOT.parent / "Website_lama" / "models_checkpoints.zip",
 ]
 ALVIN_MODEL_FILENAME = "B4_seed42.joblib"
+ALVIN_CHECKPOINT_IDS = {model_id.lower(): model_id for model_id in (
+    "B0", "B1", "B2", "B3", "B4", "E4a", "E4b", "E4c", "E4d", "E4e"
+)}
 
 class DeepGuardEngine:
     def __init__(self):
@@ -66,7 +69,10 @@ class DeepGuardEngine:
         self._load_fawwas_model()
 
     def get_alvin_checkpoint(self, model_id: str = "B4") -> Dict[str, Any]:
-        normalized_id = model_id.upper().strip()
+        requested_id = str(model_id).strip().lower()
+        normalized_id = ALVIN_CHECKPOINT_IDS.get(requested_id)
+        if normalized_id is None:
+            raise ValueError(f"Unknown Alvin checkpoint: {model_id}")
         if normalized_id in self.alvin_cache:
             return self.alvin_cache[normalized_id]
 
@@ -201,9 +207,9 @@ class DeepGuardEngine:
 
             # Determine which Alvin checkpoint is requested (B4, B0, B1, B2, B3, E4c, etc.)
             alvin_id = "B4"
-            for candidate in ["b0", "b1", "b2", "b3", "b4", "e4c", "e4a", "e4b", "e4e"]:
+            for candidate in ALVIN_CHECKPOINT_IDS:
                 if candidate in normalized_choice:
-                    alvin_id = candidate.upper()
+                    alvin_id = ALVIN_CHECKPOINT_IDS[candidate]
                     break
 
             try:

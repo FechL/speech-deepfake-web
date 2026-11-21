@@ -1,121 +1,44 @@
-# DeepGuard AI — Forensic Voice Verification Web App
+# DEEPGUARD
 
-Aplikasi web untuk analisis audio dan deteksi speech deepfake. Antarmuka branch `aliy` memakai tema terminal dengan alur uji satu audio dan batch, terintegrasi dengan dua kelompok model penelitian:
+A  web app for inspecting speech deepfake predictions and the audio features behind them. It brings together two independent research pipelines: Fawwas's glottal analysis and Alvin's residual and modulation analysis.
 
-1. **Model Alvin B4 (XGBoost)**: Baseline spektral residual modulasi (280 fitur statistik MFCC & LFCC) untuk deteksi speech deepfake.
-2. **Model Fawwas (Glottal v9)**: Model hasil pipeline `forensic_whole_utterance_v9` (ASVspoof 2019 LA) dengan 19 fitur glotal G3 dan fusi LFCC (99 fitur); classifier Logistic Regression, SVM, Random Forest, dan HistGradientBoosting.
+## Analysis modes
 
----
+- **01 / Single:** Choose or drop one audio file, play it back, and select Run. The model table shows P(fake), decision threshold, REAL/FAKE decision, and confidence; feature tables show the extracted values.
+- **02 / Batch Unlabeled:** Add several files to review prediction counts, average scores, and per-file model and feature results.
+- **03 / Batch Labeled:** Add REAL and FAKE files separately. The batch table reports accuracy, precision, recall, F1, balanced accuracy, AUC, EER, and confusion counts for each model.
+- **99 / Configuration:** Choose a terminal color scheme. The selection is saved in the browser.
 
-## 🚀 Cara Menjalankan Aplikasi
+Supported files: WAV, MP3, M4A, WEBM, OGG, and FLAC, up to 25 MB per file and 50 files per batch. File drag and drop works across the analysis page. A batch can be stopped while it is running; its completed results remain visible in the current browser session.
 
-Pastikan Python 3.10+ dan Node.js 20+ tersedia pada perangkat Anda.
+Confidence is the score assigned to the predicted class, not forensic certainty. Fawwas v9 scores are transformed model outputs and are not calibrated probabilities. AUC and EER require both REAL and FAKE reference files.
 
-### 1. Menjalankan Backend (Server API)
+## Research repositories
 
-Backend menyediakan dua opsi server (keduanya mendukung inferensi Model Alvin & Model Fawwas secara penuh):
+### 01 / Glottal analysis — Fawwas
 
-**Opsi A (Flask — Port 5001, Rekomendasi Standar UI):**
-```powershell
-python -m pip install -r requirements.txt
-python backend/server.py
-```
-Backend akan aktif di `http://127.0.0.1:5001`.
+[FechL/speech-deepfake-glottal](https://github.com/FechL/speech-deepfake-glottal) studies phonation evidence for speech deepfake detection. It measures pitch and voicing, jitter, shimmer, harmonics, and harmonic-to-noise ratio. The `src/pipeline_v9/` pipeline extracts whole-utterance features and measurement-quality flags; `configs/forensic_whole_utterance_v9.yaml` defines its settings. The repository also contains earlier experiments, manifests, evaluation results, and reports.
 
-**Opsi B (FastAPI / Uvicorn — Port 8000):**
-```powershell
-python -m pip install -r requirements.txt
-python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
-```
-Backend akan aktif di `http://127.0.0.1:8000` dan langsung menyajikan web UI terkompilasi dari `dist/`.
+DeepGuard uses five v9 classifiers: four 19-feature G3 glottal models (logistic regression, SVM, random forest, and histogram gradient boosting) and one 99-feature LFCC + G3 logistic-regression model. Their exported checkpoint and metadata are in `backend/checkpoints/fawwas/glottal_v9/`. See the research repository for training and evaluation details.
 
----
+### 02 / Residual and modulation analysis — Alvin
 
-### 2. Menjalankan Frontend (Pengembangan Web)
+[alvinrw/skripsi_final](https://github.com/alvinrw/skripsi_final) studies spectral features alongside forensic evidence from linear-prediction residuals and modulation spectrum. Its `skripsi_residual_modulasi/` directory contains the experiment: `src/` for extraction, training, evaluation, and statistical analysis, and `configs/baseline.yaml` for settings.
 
-Frontend berbasis **React + Vite** terletak di dalam folder `frontend/`:
+DeepGuard loads ten saved classifiers: spectral baselines B0–B4 and evidence models E4a–E4e. The app exposes their MFCC, LFCC, residual LPC, and modulation features in separate tables. Checkpoints are stored in `backend/checkpoints/alvin/`; see the research repository for model design and experiment results.
 
-```powershell
-cd frontend
-npm install
-npm run dev
-```
+## Repositories
 
-Buka `http://127.0.0.1:5173` pada browser Anda.
-Mode development Vite secara otomatis melakukan proxy permintaan `/api/analyze`, `/detect`, dan `/health` ke backend port 5001.
+- [Glottal research · FechL](https://github.com/FechL/speech-deepfake-glottal)
+- [Residual and modulation research · alvinrw](https://github.com/alvinrw/skripsi_final)
 
-### 3. Kompilasi Ulang Frontend untuk Produksi
+## Contributors
 
-Jika Anda melakukan perubahan kode komponen React di `frontend/src/`:
+- [FechL](https://github.com/FechL) — glottal research and DeepGuard web repository.
+- [alvinrw](https://github.com/alvinrw) — residual and modulation research.
 
-```powershell
-cd frontend
-npm run build
-```
-Hasil build produksi otomatis dikompilasi ke folder `dist/`.
+## Credits and sources
 
----
-
-## 📁 Struktur Preprocessing
-
-Preprocessing tiap model berada di paket sendiri dengan README masing-masing:
-`backend/preprocessing/alvin/`, `backend/preprocessing/fawwas/`, dan langkah bersama `backend/preprocessing/audio_loading.py`
-(lihat `backend/preprocessing/README.md`).
-
----
-
-## 🧠 Struktur Model & Perannya
-
-| Model | Algoritma | Fitur | Peran Forensik | File Checkpoint |
-|---|---|---|---|---|
-| **Model Alvin** | XGBoost (B4) | 280 Fitur (MFCC 20 stat + Delta + Delta2 + LFCC 20 mean/std) | Deteksi manipulasi speech deepfake vokal & kloning AI | `backend/checkpoints/alvin/*_seed42.joblib` (10 berkas, langsung di repo) |
-| **Model Fawwas** | Glottal v9 (LR, SVM, RF, HGB; seed 2026) | 19 fitur glotal G3, atau LFCC 80 + G3 (99 fitur) | Bukti fonasi glotal untuk deteksi deepfake | `backend/checkpoints/fawwas/glottal_v9/` |
-
-Semua model runtime ada sebagai berkas biasa (tanpa zip, tanpa Git LFS). Alvin: 10 berkas `*_seed42.joblib`. Fawwas: `backend/checkpoints/fawwas/glottal_v9/` berisi checkpoint seed 2026 dan metadata; ekspor ulang dengan `scripts/export_fawwas_v9.py` jika diperlukan. Skor v9 yang ditampilkan merupakan transformasi monotonik dari margin model, bukan probabilitas terkalibrasi. Varian glotal murni masih lemah pada domain MLAAD (AUC v9 sekitar 0,47–0,59 bergantung classifier); lihat metrik di repo penelitian.
-
-Kedua keluarga model bekerja secara mandiri. Layar analisis baru menjalankan semua checkpoint yang tersedia dan menampilkan hasil per model.
-
-### Referensi Threshold Model
-
-Nilai threshold disimpan di dokumentasi ini sebagai referensi; nilai tersebut tidak ditampilkan pada layar Pengaturan.
-
-| Model | Threshold |
-|---|---:|
-| Alvin B4 | 0.3793 (37.9%) |
-| Alvin B0 | 0.4359 (43.6%) |
-| Alvin B1 | 0.3821 (38.2%) |
-| Alvin B2 | 0.4346 (43.5%) |
-| Alvin B3 | 0.4329 (43.3%) |
-| Alvin E4c | 0.4095 (41.0%) |
-| Alvin E4a | 0.4028 (40.3%) |
-| Alvin E4b | 0.4766 (47.7%) |
-| Alvin E4e | 0.4249 (42.5%) |
-| Fawwas Glottal G3 · LR (`glottal_g3`) | 0.5 |
-| Fawwas Glottal G3 · SVM (`glottal_g3_svm`) | 0.5 |
-| Fawwas Glottal G3 · RF (`glottal_g3_rf`) | 0.5 |
-| Fawwas Glottal G3 · HGB (`glottal_g3_hgb`) | 0.5 |
-| Fawwas LFCC + G3 · LR (`glottal_lfcc_g3`) | 0.5 |
-
----
-
-## Terminal analisis (branch `aliy`)
-
-- Tampilan ringkas bertema terminal memakai Geist Mono dengan judul **DEEPGUARD** di atas.
-- Dua tab langsung: **Satu audio** dan **Batch**. Format: WAV, MP3, M4A, FLAC, WebM, OGG; maksimum 25 MB per file.
-- Tabel model, fitur, dan metrik batch tampil sejak halaman dibuka. Daftar awal berasal dari checkpoint dan definisi fitur di `frontend/src/analysisCatalog.json`; nilai hasil analisis yang belum tersedia ditandai `—`.
-- `POST /api/analyze` menjalankan semua checkpoint Alvin dan Fawwas yang tersedia. Respons berisi prediksi per model, ambang keputusan beku, serta tabel nilai fitur MFCC/LFCC, residual LPC, modulasi, glotal G0/G1/G2, dan QC.
-- Jalur Alvin dan Fawwas diekstrak masing-masing satu kali per audio. Jika satu jalur gagal, hasil jalur yang berhasil tetap ditampilkan bersama alasan kegagalannya.
-- Pada **Satu audio**, keputusan dan confidence tiap model ditampilkan langsung dalam tabel. Confidence adalah probabilitas kelas hasil model (`P(FAKE)` atau `1-P(FAKE)`), **bukan** kalibrasi kepastian forensik.
-- Pada **Batch**, file diproses berurutan dengan status per file, tombol berhenti, dan detail prediksi serta fitur per file. Label asli REAL/FAKE opsional; nama folder `REAL`/`FAKE` terdeteksi otomatis dan bisa diubah. Metrik per model (accuracy, precision, recall, F1, balanced accuracy, AUC, EER, confusion counts) dihitung hanya dari file yang memiliki label asli. Tanpa dua kelas referensi, AUC/EER ditampilkan sebagai tidak tersedia.
-- Batch berjalan di browser dan memakai endpoint analisis per file. Hasil batch berada dalam memori tab selama sesi halaman; endpoint ini tidak menambahkan file ke koleksi sampel Flask.
-
----
-
-## 🧪 Pengujian Unit & Verifikasi
-
-Jalankan test suite backend untuk memvalidasi kedua model dan endpoint API:
-
-```powershell
-python -u run_tests.py
-```
-Metrik batch juga dapat diuji dengan `node tests/terminal_metrics.test.mjs`.
+- [ASVspoof 2019: A large-scale public database of synthesized, converted and replayed speech](https://arxiv.org/abs/1911.01601) — dataset used by the glottal research.
+- [DEEP-VOICE paper](https://arxiv.org/abs/2308.12734) — dataset reference in the residual and modulation research.
+- Model architecture, feature definitions, and evaluation details: the two research repositories linked above.

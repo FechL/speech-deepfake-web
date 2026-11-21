@@ -1,4 +1,3 @@
 - dikanan atas ganti menjadi credit github FechL dan alvinrw
 - tambahkan 00 / README.md
 - tambahkan 99 / Configuration
-- buatkan script untuk menyalakan dev dengan .sh

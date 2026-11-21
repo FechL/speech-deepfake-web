@@ -3,9 +3,11 @@ import catalog from './analysisCatalog.json';
 import { batchMetrics } from './metrics';
 import { sortRows, useTableSort } from './tableSort';
 import { defaultTheme, themes } from './themes';
+import readmeSource from '../../README.md?raw';
 import './App.css';
 
 const EXTENSIONS = new Set(['wav', 'mp3', 'm4a', 'webm', 'ogg', 'flac']);
+const MAX_BATCH_FILES = 50;
 const validAudio = file => EXTENSIONS.has(file.name.split('.').pop().toLowerCase()) && file.size > 0 && file.size <= 25 * 1024 * 1024;
 const fmt = value => value === null || value === undefined ? '—' : (value * 100).toFixed(1) + '%';
 const num = value => value === null || value === undefined || !Number.isFinite(value) ? '—' : Number(value).toFixed(4);
@@ -167,6 +169,80 @@ function AudioPlayer({ file, compact = false }) {
   </div>;
 }
 
+function markdownInline(source) {
+  const pieces = [];
+  const tokens = /(\[([^\]]+)\]\((https?:\/\/[^)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*)/g;
+  let offset = 0;
+  for (const match of source.matchAll(tokens)) {
+    if (match.index > offset) pieces.push(source.slice(offset, match.index));
+    if (match[2]) pieces.push(<a key={match.index} href={match[3]} target="_blank" rel="noopener noreferrer">{match[2]}</a>);
+    else if (match[4]) pieces.push(<code key={match.index}>{match[4]}</code>);
+    else pieces.push(<strong key={match.index}>{match[5]}</strong>);
+    offset = match.index + match[0].length;
+  }
+  if (offset < source.length) pieces.push(source.slice(offset));
+  return pieces;
+}
+
+function MarkdownContent({ source }) {
+  const blocks = source.trim().split(/\n\s*\n/);
+  return blocks.map((block, index) => {
+    const heading = block.match(/^(#{1,3}) (.+)$/);
+    if (heading) {
+      const Heading = `h${heading[1].length}`;
+      return <Heading key={index}>{markdownInline(heading[2])}</Heading>;
+    }
+    if (block === '---') return <hr key={index} />;
+    if (block.startsWith('```')) return <pre key={index}><code>{block.replace(/^```[^\n]*\n/, '').replace(/\n```$/, '')}</code></pre>;
+    const lines = block.split('\n');
+    if (lines.every(line => /^- /.test(line))) return <ul key={index}>{lines.map((line, lineIndex) => <li key={lineIndex}>{markdownInline(line.slice(2))}</li>)}</ul>;
+    if (lines.every(line => /^\d+\. /.test(line))) return <ol key={index}>{lines.map((line, lineIndex) => <li key={lineIndex}>{markdownInline(line.replace(/^\d+\. /, ''))}</li>)}</ol>;
+    return <p key={index}>{markdownInline(lines.join(' '))}</p>;
+  });
+}
+
+function Readme() {
+  const sections = readmeSource.trim().split(/(?=^## )/m);
+  const sidebarTitles = ['Repositories', 'Contributors', 'Credits and sources'];
+  const titleOf = section => section.match(/^## ([^\n]+)/)?.[1];
+  const main = sections.filter(section => !sidebarTitles.includes(titleOf(section)));
+  return <div className="readme-layout" role="tabpanel" aria-label="README.md">
+    <article className="panel readme-panel markdown-document"><MarkdownContent source={main.join('\n\n')} /></article>
+    <aside className="readme-sidebar" aria-label="Project details">
+      {sidebarTitles.map(title => {
+        const section = sections.find(item => titleOf(item) === title);
+        return section && <section className="panel readme-panel markdown-document" key={title}><MarkdownContent source={section} /></section>;
+      })}
+    </aside>
+  </div>;
+}
+
+function Configuration({ theme, onThemeChange }) {
+  return <div className="mode-content" role="tabpanel" aria-label="Configuration">
+    <section className="panel readme-panel">
+      <div className="readme-path">/ DEEPGUARD / CONFIGURATION</div>
+      <h2>Color scheme</h2>
+      <p>Select a terminal palette. Your choice is saved in this browser.</p>
+      <div className="theme-grid">{themes.map(item => <button type="button" key={item.id} className={'theme-option' + (theme === item.id ? ' selected' : '')} aria-pressed={theme === item.id} onClick={() => onThemeChange(item.id)}>
+        <span className="theme-swatches" aria-hidden="true">{item.colors.map(color => <i key={color} style={{ backgroundColor: color }} />)}</span>
+        <span>{item.name}</span><span className="theme-check" aria-hidden="true">{theme === item.id ? '✓' : ''}</span>
+      </button>)}</div>
+    </section>
+  </div>;
+}
+
+function NotificationCard({ item, onClose }) {
+  useEffect(() => {
+    const timer = window.setTimeout(() => onClose(item.id), 15000);
+    return () => window.clearTimeout(timer);
+  }, [item.id, onClose]);
+
+  return <div className={'notification-card' + (item.type === 'error' ? ' error' : '')} role="alert">
+    <span>{item.message}</span>
+    <button type="button" className="notification-close" aria-label="Close notification" onClick={() => onClose(item.id)}>×</button>
+  </div>;
+}
+
 function App() {
   const [tab, setTab] = useState('single');
   const [theme, setTheme] = useState(() => {
@@ -175,80 +251,78 @@ function App() {
       return themes.some(item => item.id === saved) ? saved : defaultTheme;
     } catch { return defaultTheme; }
   });
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const settingsRef = useRef(null);
   const [singleFile, setSingleFile] = useState(null);
   const [singleResult, setSingleResult] = useState(null);
-  const [singleError, setSingleError] = useState('');
   const [singleBusy, setSingleBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [dragSide, setDragSide] = useState(null);
   const [unlabeledBatch, setUnlabeledBatch] = useState([]);
   const [labeledBatch, setLabeledBatch] = useState([]);
   const [busyTab, setBusyTab] = useState(null);
-  const [unlabeledError, setUnlabeledError] = useState('');
-  const [labeledError, setLabeledError] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const notificationId = useRef(0);
   const controller = useRef(null);
   const stop = useRef(false);
   const isLabeled = tab === 'batch-labeled';
   const batch = isLabeled ? labeledBatch : unlabeledBatch;
   const setBatch = isLabeled ? setLabeledBatch : setUnlabeledBatch;
-  const batchError = isLabeled ? labeledError : unlabeledError;
-  const setBatchError = isLabeled ? setLabeledError : setUnlabeledError;
   const batchBusy = busyTab !== null;
+  const pushNotification = useCallback((message, type = 'error') => {
+    const id = ++notificationId.current;
+    setNotifications(current => [...current, { id, message, type }]);
+  }, []);
+  const dismissNotification = useCallback(id => {
+    setNotifications(current => current.filter(item => item.id !== id));
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem('deepguard-theme', theme); } catch { /* Storage may be unavailable. */ }
   }, [theme]);
 
-  useEffect(() => {
-    if (!settingsOpen) return;
-    const closeOutside = event => { if (!settingsRef.current?.contains(event.target)) setSettingsOpen(false); };
-    const closeEscape = event => { if (event.key === 'Escape') setSettingsOpen(false); };
-    document.addEventListener('pointerdown', closeOutside);
-    document.addEventListener('keydown', closeEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOutside);
-      document.removeEventListener('keydown', closeEscape);
-    };
-  }, [settingsOpen]);
-
   const addFiles = useCallback((files, labeled, forcedLabel = null) => {
     const list = Array.from(files || []);
     const allowed = list.filter(validAudio);
-    const setError = labeled ? setLabeledError : setUnlabeledError;
+    const seen = new Set();
+    const uniqueAllowed = allowed.filter(file => { const id = key(file); if (seen.has(id)) return false; seen.add(id); return true; });
     const setRows = labeled ? setLabeledBatch : setUnlabeledBatch;
-    setError(list.length !== allowed.length ? (list.length - allowed.length) + ' files skipped: unsupported format, size, or empty file.' : '');
+    const currentRows = labeled ? labeledBatch : unlabeledBatch;
+    const currentIds = new Set(currentRows.map(row => row.id));
+    const fresh = uniqueAllowed.filter(file => !currentIds.has(key(file)));
+    const overflow = Math.max(0, fresh.length - Math.max(0, MAX_BATCH_FILES - currentRows.length));
+    if (list.length !== allowed.length) pushNotification((list.length - allowed.length) + ' files skipped: unsupported format, size, or empty file.', 'warning');
+    if (overflow) pushNotification(overflow + ' files skipped: batch limit is ' + MAX_BATCH_FILES + ' files.', 'warning');
     setRows(current => {
       const existing = new Set(current.map(row => row.id));
-      return [...current, ...allowed.filter(file => !existing.has(key(file))).map(file => ({ id: key(file), file, label: labeled ? (forcedLabel === 1 ? 1 : 0) : null, status: 'ready', result: null, error: '' }))];
+      const available = Math.max(0, MAX_BATCH_FILES - current.length);
+      const added = uniqueAllowed.filter(file => !existing.has(key(file))).slice(0, available);
+      return added.length ? [...current, ...added.map(file => ({ id: key(file), file, label: labeled ? (forcedLabel === 1 ? 1 : 0) : null, status: 'ready', result: null, error: '' }))] : current;
     });
-  }, []);
+  }, [labeledBatch, unlabeledBatch, pushNotification]);
 
   useEffect(() => {
     const isFileDrag = event => Array.from(event.dataTransfer?.types || []).includes('Files');
-    const onDragEnter = event => { if (isFileDrag(event)) { event.preventDefault(); setDragActive(true); } };
-    const onDragOver = event => { if (isFileDrag(event)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDragActive(true); setDragSide(tab === 'batch-labeled' ? (event.clientX >= window.innerWidth / 2 ? 'fake' : 'real') : null); } };
+    const onDragEnter = event => { if (isFileDrag(event)) { event.preventDefault(); if (tab !== 'readme' && tab !== 'configuration') setDragActive(true); } };
+    const onDragOver = event => { if (isFileDrag(event)) { event.preventDefault(); event.dataTransfer.dropEffect = tab === 'readme' || tab === 'configuration' ? 'none' : 'copy'; if (tab !== 'readme' && tab !== 'configuration') { setDragActive(true); setDragSide(tab === 'batch-labeled' ? (event.clientX >= window.innerWidth / 2 ? 'fake' : 'real') : null); } } };
     const onDragLeave = event => { if (!event.relatedTarget) { setDragActive(false); setDragSide(null); } };
     const onDrop = event => {
       if (!isFileDrag(event)) return;
       event.preventDefault();
       setDragActive(false);
       setDragSide(null);
+      if (tab === 'readme' || tab === 'configuration') return;
       const files = Array.from(event.dataTransfer.files);
       if (tab !== 'single') { addFiles(files, tab === 'batch-labeled', tab === 'batch-labeled' ? Number(event.clientX >= window.innerWidth / 2) : null); return; }
       if (files.length !== 1) {
-        setSingleError('Drop one audio file in Single mode, or use Batch for multiple files.');
+        pushNotification('Drop one audio file in Single mode, or use Batch for multiple files.');
         return;
       }
       if (!validAudio(files[0])) {
-        setSingleError('Unsupported format, empty file, or file exceeds 25 MB.');
+        pushNotification('Unsupported format, empty file, or file exceeds 25 MB.');
         return;
       }
       setSingleFile(files[0]);
       setSingleResult(null);
-      setSingleError('');
     };
     window.addEventListener('dragenter', onDragEnter);
     window.addEventListener('dragover', onDragOver);
@@ -260,18 +334,22 @@ function App() {
       window.removeEventListener('dragleave', onDragLeave);
       window.removeEventListener('drop', onDrop);
     };
-  }, [tab, addFiles]);
+  }, [tab, addFiles, pushNotification]);
+
+  useEffect(() => {
+    if (tab === 'readme' || tab === 'configuration') { setDragActive(false); setDragSide(null); }
+  }, [tab]);
   const runSingle = async () => {
     if (!singleFile) return;
-    setSingleError(''); setSingleResult(null); setSingleBusy(true);
+    setSingleResult(null); setSingleBusy(true);
     try { setSingleResult(await analyze(singleFile)); }
-    catch (error) { setSingleError(String(error.message)); }
+    catch (error) { pushNotification(String(error.message)); }
     finally { setSingleBusy(false); }
   };
   const runBatch = async () => {
     if (!batch.length) return;
     if (batchBusy) return;
-    setBusyTab(tab); setBatchError(''); stop.current = false;
+    setBusyTab(tab); stop.current = false;
     for (const item of batch.filter(row => row.status !== 'done')) {
       if (stop.current) break;
       controller.current = new AbortController();
@@ -285,6 +363,7 @@ function App() {
           break;
         }
         setBatch(rows => rows.map(row => row.id === item.id ? { ...row, status: 'error', error: String(error.message) } : row));
+        pushNotification(item.file.name + ': ' + String(error.message));
       }
     }
     controller.current = null; setBusyTab(null);
@@ -296,42 +375,34 @@ function App() {
     <main className="workspace">
       <div className="topbar">
         <h1 className="site-title">DEEPGUARD</h1>
-        <div className="settings" ref={settingsRef}>
-          <button type="button" className="settings-toggle" aria-label="Choose color scheme" aria-expanded={settingsOpen} aria-controls="theme-menu" onClick={() => setSettingsOpen(open => !open)}>
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20h1.1a2.9 2.9 0 0 0 2.9-2.9c0-.7-.3-1.4-.8-1.9a2.4 2.4 0 0 1-.7-1.7 2.5 2.5 0 0 1 2.5-2.5h1A4 4 0 0 0 22 9a10 10 0 0 0-10-7Z" /><circle cx="7.5" cy="11" r=".8" fill="currentColor" stroke="none" /><circle cx="10" cy="6.8" r=".8" fill="currentColor" stroke="none" /><circle cx="15" cy="7.2" r=".8" fill="currentColor" stroke="none" /><circle cx="18" cy="10.5" r=".8" fill="currentColor" stroke="none" /></svg>
-          </button>
-          {settingsOpen && <div className="theme-menu" id="theme-menu" aria-label="Color scheme">
-            <div className="theme-menu-title">COLOR SCHEME</div>
-            {themes.map(item => <button type="button" key={item.id} className={'theme-option' + (theme === item.id ? ' selected' : '')} aria-pressed={theme === item.id} onClick={() => { setTheme(item.id); setSettingsOpen(false); }}>
-              <span className="theme-swatches" aria-hidden="true">{item.colors.map(color => <i key={color} style={{ backgroundColor: color }} />)}</span>
-              <span>{item.name}</span><span className="theme-check" aria-hidden="true">{theme === item.id ? '✓' : ''}</span>
-            </button>)}
-          </div>}
-        </div>
+        <div className="credits"><a href="https://github.com/FechL" target="_blank" rel="noopener noreferrer">FechL</a><span aria-hidden="true">·</span><a href="https://github.com/alvinrw" target="_blank" rel="noopener noreferrer">alvinrw</a></div>
       </div>
-      <div className="tabs" role="tablist" aria-label="Analysis mode"><button role="tab" aria-selected={tab === 'single'} className={tab === 'single' ? 'active' : ''} onClick={() => setTab('single')}>01 / Single</button><button role="tab" aria-selected={tab === 'batch-unlabeled'} className={tab === 'batch-unlabeled' ? 'active' : ''} onClick={() => setTab('batch-unlabeled')}>02 / Batch Unlabeled</button><button role="tab" aria-selected={tab === 'batch-labeled'} className={tab === 'batch-labeled' ? 'active' : ''} onClick={() => setTab('batch-labeled')}>03 / Batch Labeled</button></div>
-      {tab === 'single' ? <div className="mode-content" role="tabpanel">
+      <div className="tabs" role="tablist" aria-label="Analysis mode"><button role="tab" aria-selected={tab === 'readme'} className={tab === 'readme' ? 'active' : ''} onClick={() => setTab('readme')}>00 / README.md</button><button role="tab" aria-selected={tab === 'single'} className={tab === 'single' ? 'active' : ''} onClick={() => setTab('single')}>01 / Single</button><button role="tab" aria-selected={tab === 'batch-unlabeled'} className={tab === 'batch-unlabeled' ? 'active' : ''} onClick={() => setTab('batch-unlabeled')}>02 / Batch Unlabeled</button><button role="tab" aria-selected={tab === 'batch-labeled'} className={tab === 'batch-labeled' ? 'active' : ''} onClick={() => setTab('batch-labeled')}>03 / Batch Labeled</button><button role="tab" aria-selected={tab === 'configuration'} className={'configuration-tab' + (tab === 'configuration' ? ' active' : '')} onClick={() => setTab('configuration')}>99 / Configuration</button></div>
+      {tab === 'readme' ? <Readme /> : tab === 'configuration' ? <Configuration theme={theme} onThemeChange={setTheme} /> : tab === 'single' ? <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="single-controls">
-          <label className="import-button">Choose file<input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); setSingleError(''); e.target.value = ''; }} /></label>
+          <label className="import-button">Choose file<input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); e.target.value = ''; }} /></label>
           {singleFile ? <div className="single-file"><div className="queue-name"><strong title={singleFile.name}>{singleFile.name}</strong><small>{(singleFile.size / 1048576).toFixed(2)} MB</small></div><AudioPlayer key={key(singleFile)} file={singleFile} /></div> : <div className="dropzone"><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>Drop audio here</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB</small></span></div>}
-          {singleFile && <><button className="primary" disabled={singleBusy} onClick={runSingle}>{singleBusy ? 'Running...' : 'Run'}</button><button className="secondary-button" disabled={singleBusy} onClick={() => { setSingleFile(null); setSingleResult(null); setSingleError(''); }}>Clear</button></>}</div>{singleError && <div className="notice error">{singleError}</div>}</section>
+          {singleFile && <><button className="primary" disabled={singleBusy} onClick={runSingle}>{singleBusy ? 'Running...' : 'Run'}</button><button className="secondary-button" disabled={singleBusy} onClick={() => { setSingleFile(null); setSingleResult(null); }}>Clear</button></>}</div></section>
         <Result data={singleResult} />
       </div> : <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="batch-import">
-          {!isLabeled ? <><label className="import-button">Choose files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, false); e.target.value = ''; }} /></label><span>{batch.length} files</span></> : <>
+          {!isLabeled ? <><label className="import-button">Choose files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, false); e.target.value = ''; }} /></label><span>{batch.length}/{MAX_BATCH_FILES} files</span></> : <>
             <label className="import-button">Choose REAL files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, true, 0); e.target.value = ''; }} /></label>
             <label className="import-button">Choose FAKE files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, true, 1); e.target.value = ''; }} /></label>
-            <span>{batch.length} files</span>
+            <span>{batch.length}/{MAX_BATCH_FILES} files</span>
           </>}</div>
           {!!batch.length && <><div className="queue-head"><span>QUEUE</span><div>{isLabeled && <><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 0 })))}>All REAL</button><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 1 })))}>All FAKE</button></>}<button disabled={batchBusy} onClick={() => setBatch([])}>Clear</button></div></div>
             <div className="queue-list" tabIndex="0">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div><AudioPlayer file={item.file} compact />{isLabeled && <select aria-label={'Ground truth label for ' + item.file.name} disabled={batchBusy} value={item.label ?? 0} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: Number(e.target.value) } : row))}><option value="0">REAL</option><option value="1">FAKE</option></select>}<span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
             <div className="actions"><button className="primary" disabled={batchBusy || batch.every(row => row.status === 'done')} onClick={runBatch}>{busyTab === tab ? 'Processing batch...' : 'Run batch'}</button>{batchBusy && <button className="secondary-button" onClick={() => { stop.current = true; controller.current?.abort(); }}>Stop</button>}<span>{completed.length}/{batch.length} completed</span></div>
-            </>}
-          {batchError && <div className="notice">{batchError}</div>}</section>
+          </>}
+        </section>
         <section className="panel">{isLabeled ? <BatchMetricsTable batch={batch} /> : <UnlabeledMetricsTable batch={batch} />}</section>
         {!!completed.length && <section className="batch-results">{completed.map(item => <details className="file-detail" key={item.id}><summary><span>{item.file.name}</span><span>{item.label === null ? 'UNLABELED' : item.label ? 'FAKE' : 'REAL'} · {item.result.predictions.length} MODELS</span></summary><Result data={item.result} /></details>)}</section>}
       </div>}
     </main>
+    {!!notifications.length && <div className="notification-stack" aria-label="Notifications">
+      {notifications.slice().reverse().map(item => <NotificationCard key={item.id} item={item} onClose={dismissNotification} />)}
+    </div>}
   </div>;
 }
 
