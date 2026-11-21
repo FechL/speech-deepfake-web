@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import catalog from './analysisCatalog.json';
 import { batchMetrics } from './metrics';
+import { sortRows, useTableSort } from './tableSort';
 import { defaultTheme, themes } from './themes';
 import './App.css';
 
@@ -36,12 +37,21 @@ async function analyze(file, signal) {
   return data;
 }
 
+function SortHeader({ label, column, sort, onSort, title }) {
+  const direction = sort.key === column ? sort.direction : null;
+  return <th scope="col" aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none'}>
+    <button type="button" className="sort-header" title={title} onClick={() => onSort(column)}>{label}</button>
+  </th>;
+}
+
 function FeatureTable({ groups }) {
   const [groupId, setGroupId] = useState('all');
   const [query, setQuery] = useState('');
+  const [sort, selectSort] = useTableSort();
   const rows = groups.flatMap(group => groupId === 'all' || group.id === groupId
     ? group.values.filter(item => item.name.toLowerCase().includes(query.toLowerCase())).map(item => ({ ...item, group: group.title }))
     : []);
+  const sortedRows = sortRows(rows, sort, (row, column) => row[column]);
   return <>
     <div className="feature-tools">
       <select aria-label="Feature group" value={groupId} onChange={e => setGroupId(e.target.value)}>
@@ -50,17 +60,43 @@ function FeatureTable({ groups }) {
       </select>
       <input type="search" aria-label="Search features" placeholder="Search features..." value={query} onChange={e => setQuery(e.target.value)} />
     </div>
-    <div className="table-scroll feature-scroll"><table><thead><tr><th>Group</th><th>Feature name</th><th>Value</th></tr></thead>
-      <tbody>{rows.map((item, i) => <tr key={item.group + item.name + i}><td>{item.group}</td><td className="mono">{item.name}</td><td className="mono">{num(item.value)}</td></tr>)}
+    <div className="table-scroll feature-scroll"><table><thead><tr><SortHeader label="Group" column="group" sort={sort} onSort={selectSort} /><SortHeader label="Feature name" column="name" sort={sort} onSort={selectSort} /><SortHeader label="Value" column="value" sort={sort} onSort={selectSort} /></tr></thead>
+      <tbody>{sortedRows.map((item, i) => <tr key={item.group + item.name + i}><td>{item.group}</td><td className="mono">{item.name}</td><td className="mono">{num(item.value)}</td></tr>)}
         {!rows.length && <tr><td colSpan="3">No matching features.</td></tr>}</tbody></table></div>
   </>;
 }
 
 function Predictions({ predictions }) {
-  return <div className="table-scroll"><table><thead><tr><th>Model</th><th>Features</th><th>P(fake)</th><th>Threshold</th><th>Decision</th><th title="Model class probability; not calibrated as forensic certainty.">Confidence</th></tr></thead>
-    <tbody>{predictions.map(p => <tr key={p.id}>
+  const [sort, selectSort] = useTableSort();
+  const sortedPredictions = sortRows(predictions, sort, (row, column) => row[column]);
+  return <div className="table-scroll model-table"><table><thead><tr><SortHeader label="Model" column="name" sort={sort} onSort={selectSort} /><SortHeader label="Features" column="feature_count" sort={sort} onSort={selectSort} /><SortHeader label="P(fake)" column="score" sort={sort} onSort={selectSort} /><SortHeader label="Threshold" column="threshold" sort={sort} onSort={selectSort} /><SortHeader label="Decision" column="prediction" sort={sort} onSort={selectSort} /><SortHeader label="Confidence" column="confidence" sort={sort} onSort={selectSort} title="Model class probability; not calibrated as forensic certainty." /></tr></thead>
+    <tbody>{sortedPredictions.map(p => <tr key={p.id}>
       <td className="model-name">{p.name}</td><td>{p.feature_count}</td><td className="mono">{fmt(p.score)}</td><td className="mono">{fmt(p.threshold)}</td>
       <td>{p.prediction ? <span className={'tag ' + (p.prediction === 'FAKE' ? 'fake' : 'real')}>{p.prediction}</span> : '—'}</td><td className="mono">{fmt(p.confidence)}</td>
+    </tr>)}</tbody></table></div>;
+}
+
+function BatchMetricsTable({ batch }) {
+  const [sort, selectSort] = useTableSort();
+  const rows = modelRows.map(model => ({ model, metrics: batchMetrics(batch, model.id) }));
+  const sortedRows = sortRows(rows, sort, (row, column) => {
+    if (column === 'name') return row.model.name;
+    if (column === 'files') return row.metrics.scored;
+    if (column === 'confusion') return row.metrics.labeled ? row.metrics.tp : null;
+    return row.metrics[column];
+  });
+  const columns = [
+    ['Model', 'name'], ['Files', 'files'], ['Labeled', 'labeled'],
+    ['Accuracy', 'accuracy'], ['Precision', 'precision'], ['Recall', 'recall'],
+    ['F1', 'f1'], ['Balanced acc.', 'balancedAccuracy'], ['AUC', 'auc'],
+    ['EER', 'eer'], ['TP / FP / TN / FN', 'confusion'],
+  ];
+  return <div className="table-scroll model-table"><table><thead><tr>{columns.map(([label, column]) => <SortHeader key={column} label={label} column={column} sort={sort} onSort={selectSort} />)}</tr></thead>
+    <tbody>{sortedRows.map(({ model, metrics: m }) => <tr key={model.id}>
+      <td className="model-name">{model.name}</td><td>{m.scored}/{m.attempted}</td><td>{m.labeled}</td>
+      <td>{fmt(m.accuracy)}</td><td>{fmt(m.precision)}</td><td>{fmt(m.recall)}</td><td>{fmt(m.f1)}</td>
+      <td>{fmt(m.balancedAccuracy)}</td><td>{fmt(m.auc)}</td><td>{fmt(m.eer)}</td>
+      <td>{m.labeled ? `${m.tp} / ${m.fp} / ${m.tn} / ${m.fn}` : '—'}</td>
     </tr>)}</tbody></table></div>;
 }
 
@@ -150,7 +186,6 @@ function App() {
     controller.current = null; setBatchBusy(false);
   };
   const completed = batch.filter(row => row.status === 'done');
-  const models = modelRows;
 
   return <div className="terminal-app">
     <main className="workspace">
@@ -182,7 +217,7 @@ function App() {
             <div className="queue-list">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div><select aria-label={'Ground truth label for ' + item.file.name} value={item.label ?? ''} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: e.target.value === '' ? null : Number(e.target.value) } : row))}><option value="">Unlabeled</option><option value="0">REAL</option><option value="1">FAKE</option></select><span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
             <div className="actions"><button className="primary" disabled={batchBusy || batch.every(row => row.status === 'done')} onClick={runBatch}>{batchBusy ? 'Processing batch...' : 'Run batch'}</button>{batchBusy && <button className="secondary-button" onClick={() => { stop.current = true; controller.current?.abort(); }}>Stop</button>}<span>{completed.length}/{batch.length} completed</span></div></>}
           {batchError && <div className="notice">{batchError}</div>}</section>
-        <section className="panel"><div className="table-scroll"><table><thead><tr><th>Model</th><th>Files</th><th>Labeled</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th><th>Balanced acc.</th><th>AUC</th><th>EER</th><th>TP / FP / TN / FN</th></tr></thead><tbody>{models.map(model => { const m = batchMetrics(batch, model.id); return <tr key={model.id}><td className="model-name">{model.name}</td><td>{m.scored}/{m.attempted}</td><td>{m.labeled}</td><td>{fmt(m.accuracy)}</td><td>{fmt(m.precision)}</td><td>{fmt(m.recall)}</td><td>{fmt(m.f1)}</td><td>{fmt(m.balancedAccuracy)}</td><td>{fmt(m.auc)}</td><td>{fmt(m.eer)}</td><td>{m.labeled ? `${m.tp} / ${m.fp} / ${m.tn} / ${m.fn}` : '—'}</td></tr>; })}</tbody></table></div></section>
+        <section className="panel"><BatchMetricsTable batch={batch} /></section>
         {!!completed.length && <section className="batch-results">{completed.map(item => <details className="file-detail" key={item.id}><summary><span>{item.file.name}</span><span>{item.label === null ? 'UNLABELED' : item.label ? 'FAKE' : 'REAL'} · {item.result.predictions.length} MODELS</span></summary><Result data={item.result} /></details>)}</section>}
       </div>}
     </main>
