@@ -7,6 +7,8 @@
 .page-drop-overlay.labeled { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .page-drop-overlay.labeled span { display: grid; place-items: center; width: 100%; height: 100%; border: 2px dashed var(--accent); }
 .page-drop-overlay.labeled span:last-child { border-color: var(--red); color: var(--red); }
+.page-drop-overlay.labeled span.active { border-style: solid; background: color-mix(in srgb, var(--accent) 18%, transparent); box-shadow: inset 0 0 0 2px var(--accent), 0 0 32px color-mix(in srgb, var(--accent) 25%, transparent); }
+.page-drop-overlay.labeled span:last-child.active { background: color-mix(in srgb, var(--red) 18%, transparent); box-shadow: inset 0 0 0 2px var(--red), 0 0 32px color-mix(in srgb, var(--red) 25%, transparent); }
 
 .workspace { max-width: 1380px; margin: auto; padding: 28px 22px 50px; }
 .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
@@ -72,13 +74,6 @@
 .batch-import { margin-bottom: 0; }
 .batch-import .import-button { position: relative; cursor: pointer; }
 .batch-import > span, .actions > span { color: var(--muted); font-size: 12px; }
-.labeled-import { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.labeled-zone { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; min-height: 74px; padding: 10px 12px; border: 1px dashed var(--accent); background: var(--input-bg); }
-.labeled-zone:last-child { border-color: var(--red); }
-.labeled-zone > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.labeled-zone strong { color: var(--accent); font-size: 12px; }
-.labeled-zone:last-child strong { color: var(--red); }
-.labeled-zone small { color: var(--muted); font-size: 11px; }
 .hint { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .queue-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 13px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--yellow); font-size: 11px; letter-spacing: .05em; }
 .queue-head div { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -107,7 +102,6 @@
   .tabs button { flex: none; padding: 10px 8px; font-size: 11px; white-space: nowrap; }
   .single-controls { align-items: stretch; flex-direction: column; }
   .dropzone { width: 100%; }
-  .labeled-import { grid-template-columns: 1fr; }
   .single-controls .primary { width: 100%; }
   .feature-tools { flex-direction: column; }
   .feature-tools input, .feature-tools select { width: 100%; max-width: none; }

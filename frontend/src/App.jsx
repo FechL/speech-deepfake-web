@@ -152,6 +152,7 @@ function App() {
   const [singleError, setSingleError] = useState('');
   const [singleBusy, setSingleBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [dragSide, setDragSide] = useState(null);
   const [unlabeledBatch, setUnlabeledBatch] = useState([]);
   const [labeledBatch, setLabeledBatch] = useState([]);
   const [busyTab, setBusyTab] = useState(null);
@@ -191,19 +192,20 @@ function App() {
     setError(list.length !== allowed.length ? (list.length - allowed.length) + ' files skipped: unsupported format, size, or empty file.' : '');
     setRows(current => {
       const existing = new Set(current.map(row => row.id));
-      return [...current, ...allowed.filter(file => !existing.has(key(file))).map(file => ({ id: key(file), file, label: labeled ? forcedLabel : null, status: 'ready', result: null, error: '' }))];
+      return [...current, ...allowed.filter(file => !existing.has(key(file))).map(file => ({ id: key(file), file, label: labeled ? (forcedLabel === 1 ? 1 : 0) : null, status: 'ready', result: null, error: '' }))];
     });
   }, []);
 
   useEffect(() => {
     const isFileDrag = event => Array.from(event.dataTransfer?.types || []).includes('Files');
     const onDragEnter = event => { if (isFileDrag(event)) { event.preventDefault(); setDragActive(true); } };
-    const onDragOver = event => { if (isFileDrag(event)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDragActive(true); } };
-    const onDragLeave = event => { if (!event.relatedTarget) setDragActive(false); };
+    const onDragOver = event => { if (isFileDrag(event)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDragActive(true); setDragSide(tab === 'batch-labeled' ? (event.clientX >= window.innerWidth / 2 ? 'fake' : 'real') : null); } };
+    const onDragLeave = event => { if (!event.relatedTarget) { setDragActive(false); setDragSide(null); } };
     const onDrop = event => {
       if (!isFileDrag(event)) return;
       event.preventDefault();
       setDragActive(false);
+      setDragSide(null);
       const files = Array.from(event.dataTransfer.files);
       if (tab !== 'single') { addFiles(files, tab === 'batch-labeled', tab === 'batch-labeled' ? Number(event.clientX >= window.innerWidth / 2) : null); return; }
       if (files.length !== 1) {
@@ -238,7 +240,7 @@ function App() {
   };
   const runBatch = async () => {
     if (!batch.length) return;
-    if (batchBusy || (isLabeled && batch.some(row => row.label === null))) return;
+    if (batchBusy) return;
     setBusyTab(tab); setBatchError(''); stop.current = false;
     for (const item of batch.filter(row => row.status !== 'done')) {
       if (stop.current) break;
@@ -260,7 +262,7 @@ function App() {
   const completed = batch.filter(row => row.status === 'done');
 
   return <div className="terminal-app">
-    {dragActive && <div className={'page-drop-overlay' + (isLabeled ? ' labeled' : '')} aria-hidden="true">{isLabeled ? <><span>DROP REAL FILES</span><span>DROP FAKE FILES</span></> : <span>DROP AUDIO {tab === 'single' ? 'FILE' : 'FILES'} ANYWHERE</span>}</div>}
+    {dragActive && <div className={'page-drop-overlay' + (isLabeled ? ' labeled' : '')} aria-hidden="true">{isLabeled ? <><span className={dragSide === 'real' ? 'active' : ''}>DROP REAL FILES</span><span className={dragSide === 'fake' ? 'active' : ''}>DROP FAKE FILES</span></> : <span>DROP AUDIO {tab === 'single' ? 'FILE' : 'FILES'} ANYWHERE</span>}</div>}
     <main className="workspace">
       <div className="topbar">
         <h1 className="site-title">DEEPGUARD</h1>
@@ -285,16 +287,15 @@ function App() {
           <button className="primary" disabled={!singleFile || singleBusy} onClick={runSingle}>{singleBusy ? 'Analyzing...' : 'Analyze'}</button></div>{singleError && <div className="notice error">{singleError}</div>}</section>
         <Result data={singleResult} />
       </div> : <div className="mode-content" role="tabpanel">
-        <section className="panel input-panel"><div className={'batch-import' + (isLabeled ? ' labeled-import' : '')}>
+        <section className="panel input-panel"><div className="batch-import">
           {!isLabeled ? <><label className="import-button">Choose files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, false); e.target.value = ''; }} /></label><span>{batch.length} files</span></> : <>
-            {[{ label: 'REAL', value: 0 }, { label: 'FAKE', value: 1 }].map(zone => <div className="labeled-zone" key={zone.label} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); e.stopPropagation(); setDragActive(false); addFiles(e.dataTransfer.files, true, zone.value); }}>
-              <div><strong>{zone.label}</strong><small>Drop files here</small></div>
-              <label className="import-button">Choose {zone.label} files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, true, zone.value); e.target.value = ''; }} /></label>
-            </div>)}
+            <label className="import-button">Choose REAL files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, true, 0); e.target.value = ''; }} /></label>
+            <label className="import-button">Choose FAKE files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, true, 1); e.target.value = ''; }} /></label>
+            <span>{batch.length} files</span>
           </>}</div>
           {!!batch.length && <><div className="queue-head"><span>QUEUE</span><div>{isLabeled && <><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 0 })))}>All REAL</button><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 1 })))}>All FAKE</button></>}<button disabled={batchBusy} onClick={() => setBatch([])}>Clear</button></div></div>
-            <div className="queue-list" tabIndex="0">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div>{isLabeled && <select aria-label={'Ground truth label for ' + item.file.name} disabled={batchBusy} value={item.label ?? ''} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: e.target.value === '' ? null : Number(e.target.value) } : row))}><option value="">Select label</option><option value="0">REAL</option><option value="1">FAKE</option></select>}<span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
-            <div className="actions"><button className="primary" disabled={batchBusy || batch.every(row => row.status === 'done') || (isLabeled && batch.some(row => row.label === null))} onClick={runBatch}>{busyTab === tab ? 'Processing batch...' : 'Run batch'}</button>{batchBusy && <button className="secondary-button" onClick={() => { stop.current = true; controller.current?.abort(); }}>Stop</button>}<span>{completed.length}/{batch.length} completed</span></div>
+            <div className="queue-list" tabIndex="0">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div>{isLabeled && <select aria-label={'Ground truth label for ' + item.file.name} disabled={batchBusy} value={item.label ?? 0} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: Number(e.target.value) } : row))}><option value="0">REAL</option><option value="1">FAKE</option></select>}<span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
+            <div className="actions"><button className="primary" disabled={batchBusy || batch.every(row => row.status === 'done')} onClick={runBatch}>{busyTab === tab ? 'Processing batch...' : 'Run batch'}</button>{batchBusy && <button className="secondary-button" onClick={() => { stop.current = true; controller.current?.abort(); }}>Stop</button>}<span>{completed.length}/{batch.length} completed</span></div>
             </>}
           {batchError && <div className="notice">{batchError}</div>}</section>
         <section className="panel">{isLabeled ? <BatchMetricsTable batch={batch} /> : <UnlabeledMetricsTable batch={batch} />}</section>
