@@ -37,12 +37,12 @@ const SelectModelScreen = ({
   }[currentAlvinModel] || `${currentAlvinModel} (XGBoost)`;
 
   const fawwasModelName = {
-    glottal_g3: 'Glottal G3 · SVM',
+    glottal_g3: 'Glottal G3 · LR',
+    glottal_g3_svm: 'Glottal G3 · SVM',
     glottal_g3_rf: 'Glottal G3 · Random Forest',
-    glottal_g3_xgb: 'Glottal G3 · XGBoost',
-    glottal_mfcc_g3: 'Fusi MFCC + Glottal G3',
-    glottal_lfcc_g3: 'Fusi LFCC + Glottal G3'
-  }[currentFawwasModel] || 'Glottal G3 · SVM';
+    glottal_g3_hgb: 'Glottal G3 · HGB',
+    glottal_lfcc_g3: 'LFCC + Glottal G3 · LR'
+  }[currentFawwasModel] || 'Glottal G3 · LR';
 
   const alvinLogs = [
     'Menginisialisasi mesin deteksi forensik...',
@@ -59,8 +59,8 @@ const SelectModelScreen = ({
     `Memuat konfigurasi Model Fawwas ${fawwasModelName}...`,
     'Mengekstrak fitur fonasi glotal (F0, jitter, shimmer, HNR, harmonik) & spektral...',
     'Menerapkan imputasi median & standardisasi fitur dari data latih...',
-    'Menjalankan classifier beku Glottal v8 (SVM / RF / XGBoost)...',
-    'Mengestimasi probabilitas keaslian suara rekaman...',
+    'Running the Glottal v9 classifier (LR / SVM / RF / HGB)...',
+    'Mapping the model margin to the v9 decision score...',
     'Menyusun laporan analisis forensik audio...'
   ];
 

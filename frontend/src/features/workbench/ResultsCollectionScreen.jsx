@@ -16,11 +16,11 @@ const ALVIN_OPTIONS = [
 ];
 
 const FAWWAS_OPTIONS = [
-  { id: 'fawwas_glottal_g3', label: 'Glottal G3 · SVM' },
+  { id: 'fawwas_glottal_g3', label: 'Glottal G3 · LR' },
+  { id: 'fawwas_glottal_g3_svm', label: 'Glottal G3 · SVM' },
   { id: 'fawwas_glottal_g3_rf', label: 'Glottal G3 · RF' },
-  { id: 'fawwas_glottal_g3_xgb', label: 'Glottal G3 · XGBoost' },
-  { id: 'fawwas_glottal_mfcc_g3', label: 'MFCC + G3 · XGBoost' },
-  { id: 'fawwas_glottal_lfcc_g3', label: 'LFCC + G3 · XGBoost' },
+  { id: 'fawwas_glottal_g3_hgb', label: 'Glottal G3 · HGB' },
+  { id: 'fawwas_glottal_lfcc_g3', label: 'LFCC + G3 · LR' },
 ];
 
 const ResultsCollectionScreen = ({ onStartNewDetection, onViewReport }) => {

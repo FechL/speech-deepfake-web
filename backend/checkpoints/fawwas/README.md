@@ -1,9 +1,5 @@
-# Checkpoint Fawwas
+# Fawwas checkpoints
 
-Model yang dipakai backend: `glottal_v8/` (Glottal v8, LA + ADDITIONAL, run `baef033a6a80d0fa`).
+The backend uses `glottal_v9/seed_2026.joblib` and `seed_2026.json`. They contain five v9 systems refit from the research run `fe17e2b856dd5d6c` train features with thresholds selected on dev. The JSON includes the feature settings, system list, and SHA256 checksum. Seed 2026 is the only exported seed; `DEEPGUARD_FAWWAS_SEED` can select another seed after exporting it.
 
-* `glottal_v8/seed_2026/models_frozen_v8.joblib` — 26 sistem beku (SHA256 `8ccfcf9b...`, sesuai `frozen_selection_v8.json`)
-* `glottal_v8/features_config.json` — pengaturan ekstraktor saat training
-* `glottal_v8/run_identity.json`, `glottal_v8/README.md` — provenans dan metrik
-
-Seed 2027/2028 tidak disertakan (ukuran). Arsip `seed_*-2026111...zip` (v6) adalah eksperimen lama dan tidak dipakai runtime.
+`glottal_v8/` is retained as an older research artifact. It is not used by the current backend.

@@ -2,7 +2,7 @@
 DeepGuard Core Model Engine
 Unified inference engine supporting:
   - Model Alvin B4 (XGBoost - 280 features MFCC + LFCC)
-  - Model Fawwas (Glottal v8 - fitur glotal G3 + MFCC/LFCC; SVM / RF / XGBoost beku)
+  - Model Fawwas (Glottal v9 - whole-utterance G3 + LFCC; LR / SVM / RF / HGB)
 """
 
 import io
@@ -28,7 +28,7 @@ import numpy as np
 from .preprocessing.audio_loading import load_audio
 from .preprocessing.alvin import extract_alvin_features
 from .preprocessing.fawwas import FawwasGlottal, VARIANTS as FAWWAS_VARIANTS, resolve_variant as resolve_fawwas_variant
-from .preprocessing.fawwas import glottal_features as glottal_extractor
+from .preprocessing.fawwas import features_v9 as glottal_extractor
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -133,7 +133,7 @@ class DeepGuardEngine:
         if fawwas.loaded:
             self.fawwas = fawwas
             self.fawwas_error = None
-            print(f"[*] Model Fawwas (Glottal v8, profil {fawwas.run_id}) siap: {len(FAWWAS_VARIANTS)} varian.")
+            print(f"[*] Model Fawwas (Glottal v9, run {fawwas.run_id}) ready: {len(FAWWAS_VARIANTS)} variants.")
         else:
             self.fawwas_error = fawwas.error
             print(f"[!] Model Fawwas: {fawwas.error}")
@@ -192,7 +192,7 @@ class DeepGuardEngine:
                 "modelName": f"Model Fawwas ({label})",
                 "threshold": threshold_used,
                 "checkpointThreshold": checkpoint_threshold,
-                "engine": f"{result['kind'].upper()} Glottal v8 ({result['n_features']} Fitur)",
+                "engine": f"{result['kind'].upper()} Glottal v9 ({result['n_features']} features)",
             }
 
         else:
@@ -322,29 +322,26 @@ class DeepGuardEngine:
 
         if self.fawwas:
             try:
-                x = np.asarray(audio, dtype=float)
-                max_n = int(60 * sample_rate)
-                if len(x) > max_n:
-                    start = (len(x) - max_n) // 2
-                    x = x[start:start + max_n]
-                glottal = glottal_extractor.extract_audio_v4(x, sample_rate, self.fawwas.cfg)
-                if glottal.get("analysis_status") != "ok":
-                    raise ValueError("Tidak ada jendela suara aktif yang layak untuk ekstraksi glotal.")
+                glottal = self.fawwas.extract(audio, sample_rate)
                 for group_id, title, family in (
-                    ("glottal_g0", "Glotal G0 · Prosodi", "G0_prosody"),
-                    ("glottal_g1", "Glotal G1 · Perturbasi & HNR", "G1_perturb_hnr"),
-                    ("glottal_g2", "Glotal G2 · Harmonik", "G2_harmonic"),
+                    ("glottal_g0", "Glottal G0 · Prosody", "G0_prosody"),
+                    ("glottal_g1", "Glottal G1 · Perturbation & HNR", "G1_perturb_hnr"),
+                    ("glottal_g2", "Glottal G2 · Harmonics", "G2_harmonic_raw"),
                     ("fawwas_mfcc", "MFCC · Fawwas", "MFCC"),
                     ("fawwas_lfcc", "LFCC · Fawwas", "LFCC"),
                 ):
-                    add_group(group_id, title, glottal, glottal_extractor.FAMILIES_V4[family])
-                add_group("glottal_qc", "Kualitas pengukuran glotal", glottal,
-                          glottal_extractor.QC_STRICT_V4)
-                for variant, (key, label, _, _) in FAWWAS_VARIANTS.items():
+                    add_group(group_id, title, glottal, glottal_extractor.FAMILIES_V9[family])
+                add_group("glottal_qc", "Glottal measurement quality", glottal,
+                          glottal_extractor.QC_V9)
+                for variant, (_, label, _, _) in FAWWAS_VARIANTS.items():
                     try:
-                        spec = self.fawwas.systems[key]
-                        add_prediction("fawwas_" + variant, "Fawwas " + label, spec["model"], spec["cols"],
-                                       glottal, float(spec["threshold"]), "fawwas")
+                        result = self.fawwas.score_features(glottal, variant)
+                        score = result["prob_deepfake"]
+                        predictions.append({"id": "fawwas_" + variant, "name": "Fawwas " + label,
+                                            "family": "fawwas", "score": score, "threshold": 0.5,
+                                            "prediction": "FAKE" if score >= 0.5 else "REAL",
+                                            "confidence": score if score >= 0.5 else 1.0 - score,
+                                            "feature_count": result["n_features"]})
                     except Exception as exc:
                         errors.append({"source": "Fawwas " + variant, "message": str(exc)})
             except Exception as exc:
@@ -376,11 +373,11 @@ class DeepGuardEngine:
                 "error": self.alvin_error,
             },
             "fawwas": {
-                "name": "Model Fawwas (Glottal v8)",
-                "type": "glottal_v8",
+                "name": "Model Fawwas (Glottal v9)",
+                "type": "glottal_v9",
                 "feature_group": "glottal_g3",
-                "n_features": 44,
-                "decision_threshold": self.fawwas.systems[FAWWAS_VARIANTS["glottal_g3"][0]]["threshold"] if self.fawwas else 0.3767,
+                "n_features": len(glottal_extractor.FAMILIES_V9["G3_glottal"]),
+                "decision_threshold": 0.5,
                 "variants": [{"id": k, "label": v[1], "tag": v[2]} for k, v in FAWWAS_VARIANTS.items()],
                 "error": self.fawwas_error,
             }

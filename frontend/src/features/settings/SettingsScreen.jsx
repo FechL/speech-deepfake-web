@@ -70,39 +70,39 @@ const ALVIN_MODELS_INFO = {
 
 const FAWWAS_MODELS_INFO = {
   glottal_g3: {
-    name: 'Model Fawwas Glottal G3 (SVM)',
-    tag: 'Model Utama',
-    algorithm: 'SVM RBF (C=10), model beku v8',
-    features: '44 fitur glotal G3 (prosodi, perturbasi/HNR, harmonik)',
-    desc: 'Fitur fonasi glotal dengan SVM RBF; threshold EER dev beku 0,377.',
+    name: 'Fawwas Glottal G3 (LR)',
+    tag: 'v9 reference',
+    algorithm: 'Logistic Regression',
+    features: '19 whole-utterance G3 features',
+    desc: 'v9 glottal phonation features with the development-set decision threshold.',
+  },
+  glottal_g3_svm: {
+    name: 'Fawwas Glottal G3 (SVM)',
+    tag: 'v9 SVM',
+    algorithm: 'SVM RBF',
+    features: '19 whole-utterance G3 features',
+    desc: 'v9 glottal phonation features with SVM RBF.',
   },
   glottal_g3_rf: {
-    name: 'Model Fawwas Glottal G3 (Random Forest)',
-    tag: 'Glotal RF',
-    algorithm: 'Random Forest (200 pohon)',
-    features: '44 fitur glotal G3',
-    desc: 'Fitur glotal G3 dengan Random Forest; threshold beku 0,357.',
+    name: 'Fawwas Glottal G3 (Random Forest)',
+    tag: 'v9 RF',
+    algorithm: 'Random Forest',
+    features: '19 whole-utterance G3 features',
+    desc: 'v9 glottal phonation features with Random Forest.',
   },
-  glottal_g3_xgb: {
-    name: 'Model Fawwas Glottal G3 (XGBoost)',
-    tag: 'Glotal XGB',
-    algorithm: 'XGBoost (200 pohon, depth 6)',
-    features: '44 fitur glotal G3',
-    desc: 'Fitur glotal G3 dengan XGBoost; threshold beku 0,447.',
-  },
-  glottal_mfcc_g3: {
-    name: 'Model Fawwas Fusi MFCC + Glottal G3',
-    tag: 'Fusi MFCC & Glotal',
-    algorithm: 'XGBoost',
-    features: 'MFCC 240 + Glottal G3 44 (284 fitur)',
-    desc: 'Fusi MFCC dan glotal; generalisasi eksternal terbaik di antara varian Fawwas.',
+  glottal_g3_hgb: {
+    name: 'Fawwas Glottal G3 (HGB)',
+    tag: 'v9 HGB',
+    algorithm: 'HistGradientBoosting',
+    features: '19 whole-utterance G3 features',
+    desc: 'v9 glottal phonation features with histogram gradient boosting.',
   },
   glottal_lfcc_g3: {
-    name: 'Model Fawwas Fusi LFCC + Glottal G3',
-    tag: 'Fusi LFCC & Glotal',
-    algorithm: 'XGBoost',
-    features: 'LFCC 240 + Glottal G3 44 (284 fitur)',
-    desc: 'Fusi LFCC dan glotal; akurat pada data internal namun kurang stabil pada domain MLAAD.',
+    name: 'Fawwas LFCC + Glottal G3 (LR)',
+    tag: 'v9 fusion',
+    algorithm: 'Logistic Regression',
+    features: '80 LFCC + 19 G3 features',
+    desc: 'v9 LFCC and glottal fusion; external-domain performance varies.',
   }
 };
 

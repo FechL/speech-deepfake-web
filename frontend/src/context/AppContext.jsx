@@ -36,7 +36,7 @@ export const AppProvider = ({ children }) => {
 
   const [fawwasModel, setFawwasModel] = useState(() => {
     const saved = localStorage.getItem('dg_fawwas_model');
-    return saved && saved.startsWith('glottal_') ? saved : 'glottal_g3';
+    return ['glottal_g3', 'glottal_g3_svm', 'glottal_g3_rf', 'glottal_g3_hgb', 'glottal_lfcc_g3'].includes(saved) ? saved : 'glottal_g3';
   });
 
   const [defaultResearcher, setDefaultResearcher] = useState(() => {

@@ -2,7 +2,7 @@
 DeepGuard Audio Forensic Verification API
 Integrates:
   - Model Alvin B4 (XGBoost baseline - 280 features)
-  - Model Fawwas (Glottal v8)
+  - Model Fawwas (Glottal v9)
 Serves the approved DeepGuard Cyberpunk/Glassmorphism Web UI from dist/.
 """
 
@@ -80,7 +80,7 @@ def health_endpoint():
                 "type": status["fawwas"]["type"],
                 "features": status["fawwas"]["n_features"],
                 "available": status["model_fawwas_loaded"],
-                "description": "Fitur glotal G3 (prosodi, perturbasi, HNR, harmonik) + fusi MFCC/LFCC; model beku v8 (SVM / RF / XGBoost)."
+                "description": "Whole-utterance glottal G3 and LFCC fusion; v9 models (LR / SVM / RF / HGB)."
             }
         ]
     }
@@ -105,11 +105,11 @@ def models_endpoint():
             {
                 "id": "fawwas",
                 "family": "Acoustic + Re-recording",
-                "kind": "SVM / RF / XGBoost",
+                "kind": "LR / SVM / RF / HGB",
                 "dataset": "Forensic Re-rec Evaluation",
                 "seed": 2026,
-                "description": "Model Fawwas (Glottal v8) - 204 Fitur Akustik Standarisasi",
-                "pipeline": "glottal_v8",
+                "description": "Model Fawwas (Glottal v9) - whole-utterance features",
+                "pipeline": "glottal_v9",
                 "available": status["model_fawwas_loaded"],
                 "unavailable_reason": status["fawwas"]["error"]
             }

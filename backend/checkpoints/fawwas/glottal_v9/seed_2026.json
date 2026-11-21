@@ -1,0 +1,55 @@
+{
+  "schema": 9,
+  "run_id": "fe17e2b856dd5d6c",
+  "seed": 2026,
+  "features": {
+    "sample_rate": 16000,
+    "pitch_floor": 60.0,
+    "pitch_ceiling": 400.0,
+    "trim_db": 35.0,
+    "active_db": 30.0,
+    "min_seconds": 0.3,
+    "min_voiced_s": 0.25,
+    "min_voiced_run_s": 0.08,
+    "min_pulses_run": 5,
+    "min_pulses_total": 20,
+    "harmonic_frame_step": 2,
+    "n_ceps": 20,
+    "n_filters": 40,
+    "spectral_cmn": false,
+    "max_seconds": 60
+  },
+  "systems": {
+    "glottal_g3": {
+      "family": "G3_glottal",
+      "kind": "lr",
+      "n_features": 19,
+      "raw_threshold": 0.23858891266494608
+    },
+    "glottal_g3_svm": {
+      "family": "G3_glottal",
+      "kind": "svm_rbf",
+      "n_features": 19,
+      "raw_threshold": 0.889434735599069
+    },
+    "glottal_g3_rf": {
+      "family": "G3_glottal",
+      "kind": "rf",
+      "n_features": 19,
+      "raw_threshold": 0.8897574554910892
+    },
+    "glottal_g3_hgb": {
+      "family": "G3_glottal",
+      "kind": "hgb",
+      "n_features": 19,
+      "raw_threshold": 0.5117187304684665
+    },
+    "glottal_lfcc_g3": {
+      "family": "LFCC_plus_G3",
+      "kind": "lr",
+      "n_features": 99,
+      "raw_threshold": 1.0005357872166947
+    }
+  },
+  "model_sha256": "147bea8d7c80617b7c4a6f24d248502f436b775255511084646cf371bfc4ecc7"
+}

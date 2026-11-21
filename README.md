@@ -3,7 +3,7 @@
 Aplikasi web untuk analisis audio dan deteksi speech deepfake. Antarmuka branch `aliy` memakai tema terminal dengan alur uji satu audio dan batch, terintegrasi dengan dua kelompok model penelitian:
 
 1. **Model Alvin B4 (XGBoost)**: Baseline spektral residual modulasi (280 fitur statistik MFCC & LFCC) untuk deteksi speech deepfake.
-2. **Model Fawwas (Glottal v8)**: Model beku hasil pipeline `forensic_reference_glottal_v8` (ASVspoof 2019 LA + ADDITIONAL) yang memakai fitur fonasi glotal G3 (44 fitur) dan fusi dengan MFCC/LFCC; classifier SVM / Random Forest / XGBoost.
+2. **Model Fawwas (Glottal v9)**: Model hasil pipeline `forensic_whole_utterance_v9` (ASVspoof 2019 LA) dengan 19 fitur glotal G3 dan fusi LFCC (99 fitur); classifier Logistic Regression, SVM, Random Forest, dan HistGradientBoosting.
 
 ---
 
@@ -69,9 +69,9 @@ Preprocessing tiap model berada di paket sendiri dengan README masing-masing:
 | Model | Algoritma | Fitur | Peran Forensik | File Checkpoint |
 |---|---|---|---|---|
 | **Model Alvin** | XGBoost (B4) | 280 Fitur (MFCC 20 stat + Delta + Delta2 + LFCC 20 mean/std) | Deteksi manipulasi speech deepfake vokal & kloning AI | `backend/checkpoints/alvin/*_seed42.joblib` (10 berkas, langsung di repo) |
-| **Model Fawwas** | Glottal v8 (SVM, RF, XGBoost; seed 2026) | 44 fitur glotal G3, atau fusi MFCC/LFCC 240 + G3 (284 fitur) | Bukti fonasi glotal untuk deteksi deepfake | `backend/checkpoints/fawwas/glottal_v8/` |
+| **Model Fawwas** | Glottal v9 (LR, SVM, RF, HGB; seed 2026) | 19 fitur glotal G3, atau LFCC 80 + G3 (99 fitur) | Bukti fonasi glotal untuk deteksi deepfake | `backend/checkpoints/fawwas/glottal_v9/` |
 
-Semua model sudah ada di repo sebagai berkas biasa (tanpa zip, tanpa Git LFS): cukup `git clone`. Alvin: 10 berkas `*_seed42.joblib` (B3 dan E4d dikompres joblib agar < 100 MB; prediksi identik). Fawwas: `backend/checkpoints/fawwas/glottal_v8/` berisi model beku seed 2026, konfigurasi ekstraktor, dan README; ubah seed dengan env `DEEPGUARD_FAWWAS_SEED` (hanya seed 2026 yang ada di repo). Arsip v6 lama tidak dipakai. Catatan: fitur glotal murni generalisasinya lemah pada data eksternal (AUC MLAAD ≈ 0,54; DF ≈ 0,58) — lihat `glottal_v8/README.md`.
+Semua model runtime ada sebagai berkas biasa (tanpa zip, tanpa Git LFS). Alvin: 10 berkas `*_seed42.joblib`. Fawwas: `backend/checkpoints/fawwas/glottal_v9/` berisi checkpoint seed 2026 dan metadata; ekspor ulang dengan `scripts/export_fawwas_v9.py` jika diperlukan. Skor v9 yang ditampilkan merupakan transformasi monotonik dari margin model, bukan probabilitas terkalibrasi. Varian glotal murni masih lemah pada domain MLAAD (AUC v9 sekitar 0,47–0,59 bergantung classifier); lihat metrik di repo penelitian.
 
 Kedua keluarga model bekerja secara mandiri. Layar analisis baru menjalankan semua checkpoint yang tersedia dan menampilkan hasil per model.
 
@@ -90,11 +90,11 @@ Nilai threshold disimpan di dokumentasi ini sebagai referensi; nilai tersebut ti
 | Alvin E4a | 0.4028 (40.3%) |
 | Alvin E4b | 0.4766 (47.7%) |
 | Alvin E4e | 0.4249 (42.5%) |
-| Fawwas Glottal G3 · SVM (`glottal_g3`) | 0.3767 |
-| Fawwas Glottal G3 · RF (`glottal_g3_rf`) | 0.3567 |
-| Fawwas Glottal G3 · XGBoost (`glottal_g3_xgb`) | 0.4474 |
-| Fawwas MFCC + G3 · XGBoost (`glottal_mfcc_g3`) | 0.4468 |
-| Fawwas LFCC + G3 · XGBoost (`glottal_lfcc_g3`) | 0.4473 |
+| Fawwas Glottal G3 · LR (`glottal_g3`) | 0.5 |
+| Fawwas Glottal G3 · SVM (`glottal_g3_svm`) | 0.5 |
+| Fawwas Glottal G3 · RF (`glottal_g3_rf`) | 0.5 |
+| Fawwas Glottal G3 · HGB (`glottal_g3_hgb`) | 0.5 |
+| Fawwas LFCC + G3 · LR (`glottal_lfcc_g3`) | 0.5 |
 
 ---
 
