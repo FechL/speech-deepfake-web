@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import catalog from './analysisCatalog.json';
 import { batchMetrics } from './metrics';
+import { researchConfigs } from './researchConfigs';
 import { sortRows, useTableSort } from './tableSort';
 import { defaultTheme, themes } from './themes';
 import readmeSource from '../../README.md?raw';
@@ -220,13 +221,23 @@ function Readme() {
 function Configuration({ theme, onThemeChange }) {
   return <div className="mode-content" role="tabpanel" aria-label="Configuration">
     <section className="panel readme-panel">
-      <div className="readme-path">/ DEEPGUARD / CONFIGURATION</div>
       <h2>Color scheme</h2>
       <p>Select a terminal palette. Your choice is saved in this browser.</p>
       <div className="theme-grid">{themes.map(item => <button type="button" key={item.id} className={'theme-option' + (theme === item.id ? ' selected' : '')} aria-pressed={theme === item.id} onClick={() => onThemeChange(item.id)}>
         <span className="theme-swatches" aria-hidden="true">{item.colors.map(color => <i key={color} style={{ backgroundColor: color }} />)}</span>
         <span>{item.name}</span><span className="theme-check" aria-hidden="true">{theme === item.id ? '✓' : ''}</span>
       </button>)}</div>
+    </section>
+    <section className="panel readme-panel">
+      <div className="config-intro"><h2>Research parameters</h2><p>Reference settings from each research repository. These values are read-only in the web app.</p></div>
+      <div className="research-config-grid">{researchConfigs.map(config => <section className="research-config-card" key={config.id}>
+        <div className="research-config-head"><h3>{config.title}</h3><a href={config.url} target="_blank" rel="noopener noreferrer">{config.repo} ↗</a></div>
+        <p className="config-source">Source: <code>{config.source}</code></p>
+        {config.groups.map(group => <div className="config-group" key={group.title}>
+          <h4>{group.title}</h4>
+          <dl>{group.rows.map(([parameter, value]) => <div key={parameter}><dt>{parameter}</dt><dd>{value}</dd></div>)}</dl>
+        </div>)}
+      </section>)}</div>
     </section>
   </div>;
 }

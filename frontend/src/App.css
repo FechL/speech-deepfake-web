@@ -27,11 +27,27 @@
 .theme-swatches i { width: 9px; height: 9px; border-radius: 1px; }
 .theme-check { margin-left: auto; color: var(--cyan); }
 .readme-panel { padding: 20px 22px; }
-.readme-path { margin-bottom: 14px; color: var(--accent); font-size: 11px; letter-spacing: .08em; }
 .readme-panel h2 { margin: 0 0 10px; color: var(--fg); font-size: 20px; font-weight: 600; }
 .readme-panel h3 { margin: 0 0 8px; color: var(--yellow); font-size: 12px; font-weight: 600; }
 .readme-panel p { max-width: 920px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
 .theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; max-width: 680px; margin-top: 12px; }
+.config-intro h2 { margin: 0 0 5px; color: var(--fg); font-size: 16px; font-weight: 600; }
+.config-intro p { margin: 0; color: var(--muted); font-size: 12px; }
+.research-config-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 24px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+.research-config-card { min-width: 0; }
+.research-config-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; }
+.readme-panel .research-config-head h3 { margin: 0; color: var(--yellow); font-size: 15px; }
+.research-config-head a { color: var(--cyan); font-size: 11px; text-decoration: none; overflow-wrap: anywhere; }
+.research-config-head a:hover { text-decoration: underline; }
+.research-config-head a:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.readme-panel .config-source { margin-top: 8px; overflow-wrap: anywhere; }
+.config-source code { color: var(--cyan); }
+.config-group { margin-top: 18px; }
+.config-group h4 { margin: 0 0 7px; color: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+.config-group dl { margin: 0; }
+.config-group dl > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 7px 0; border-top: 1px solid var(--soft-border); font-size: 12px; line-height: 1.4; }
+.config-group dt { color: var(--muted); }
+.config-group dd { min-width: 0; margin: 0; color: var(--fg); text-align: right; overflow-wrap: anywhere; }
 .readme-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 355px); align-items: start; gap: 14px; }
 .readme-sidebar { display: grid; align-content: start; gap: 12px; min-width: 0; }
 .readme-sidebar .readme-panel { padding: 17px 18px; }
@@ -146,6 +162,8 @@
 
 @media (max-width: 900px) {
   .readme-layout { grid-template-columns: 1fr; }
+  .research-config-grid { grid-template-columns: 1fr; gap: 20px; }
+  .research-config-card + .research-config-card { padding-top: 20px; border-top: 1px solid var(--border); }
 }
 
 @media (max-width: 700px) {
