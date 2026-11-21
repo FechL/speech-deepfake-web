@@ -150,7 +150,7 @@ function App() {
         <h1 className="site-title">DEEPGUARD</h1>
         <div className="settings" ref={settingsRef}>
           <button type="button" className="settings-toggle" aria-label="Pengaturan color scheme" aria-expanded={settingsOpen} aria-controls="theme-menu" onClick={() => setSettingsOpen(open => !open)}>
-            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9.7 3.4 10.2 2h3.6l.5 1.4 1 1.3 1.5.4 1.4-.3 2.5 2.5-.7 1.3-.2 1.5.8 1.3L22 12l-1.4.8-.8 1.3.2 1.5.7 1.3-2.5 2.5-1.4-.3-1.5.4-1 1.3-.5 1.4h-3.6l-.5-1.4-1-1.3-1.5-.4-1.4.3-2.5-2.5.7-1.3.2-1.5-.8-1.3L2 12l1.4-.8.8-1.3-.2-1.5-.7-1.3 2.5-2.5 1.4.3 1.5-.4 1-1.3Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20h1.1a2.9 2.9 0 0 0 2.9-2.9c0-.7-.3-1.4-.8-1.9a2.4 2.4 0 0 1-.7-1.7 2.5 2.5 0 0 1 2.5-2.5h1A4 4 0 0 0 22 9a10 10 0 0 0-10-7Z"/><circle cx="7.5" cy="11" r=".8" fill="currentColor" stroke="none"/><circle cx="10" cy="6.8" r=".8" fill="currentColor" stroke="none"/><circle cx="15" cy="7.2" r=".8" fill="currentColor" stroke="none"/><circle cx="18" cy="10.5" r=".8" fill="currentColor" stroke="none"/></svg>
           </button>
           {settingsOpen && <div className="theme-menu" id="theme-menu" aria-label="Color scheme">
             <div className="theme-menu-title">COLOR SCHEME</div>

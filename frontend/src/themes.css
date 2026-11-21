@@ -41,8 +41,26 @@
   --violet: #cba6f7; --yellow: #f9e2af; --red: #f38ba8; --green: #a6e3a1;
 }
 
+:root[data-theme='horizon'] {
+  --bg: #1c1e26; --fg: #d5d8da; --surface: #232530; --raised: #2e303e;
+  --border: #3e445e; --muted: #a9adbb; --accent: #e95678; --cyan: #6bdfe6;
+  --violet: #fab795; --yellow: #fab795; --red: #ec6a88; --green: #09f7a0;
+}
+
+:root[data-theme='everforest'] {
+  --bg: #2b3339; --fg: #d3c6aa; --surface: #323c41; --raised: #3a4447;
+  --border: #505c58; --muted: #b4b6a5; --accent: #a7c080; --cyan: #7fbbb3;
+  --violet: #e69875; --yellow: #dbbc7f; --red: #e67e80; --green: #a7c080;
+}
+
+:root[data-theme='ayu-dark'] {
+  --bg: #0d1017; --fg: #d7d6d1; --surface: #10141c; --raised: #1b1f29;
+  --border: #303844; --muted: #a7b2c1; --accent: #e6b450; --cyan: #95e6cb;
+  --violet: #f29668; --yellow: #ffb454; --red: #f07178; --green: #aad94c;
+}
+
 :root {
-  --glow: color-mix(in srgb, var(--violet) 15%, var(--bg));
+  --glow: color-mix(in srgb, var(--accent) 15%, var(--bg));
   --active-bg: color-mix(in srgb, var(--accent) 17%, var(--surface));
   --hover-bg: color-mix(in srgb, var(--accent) 12%, var(--surface));
   --input-bg: color-mix(in srgb, var(--bg) 78%, var(--surface));

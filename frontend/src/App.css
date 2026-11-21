@@ -8,8 +8,8 @@
 .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
 .site-title { margin: 0; color: var(--cyan); font-size: clamp(28px, 3vw, 38px); font-weight: 700; letter-spacing: -.06em; line-height: 1; text-shadow: 0 0 22px color-mix(in srgb, var(--accent) 20%, transparent); }
 .settings { position: relative; flex: none; }
-.settings-toggle { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); color: var(--muted); }
-.settings-toggle:hover, .settings-toggle[aria-expanded='true'] { border-color: var(--accent); background: var(--active-bg); color: var(--cyan); }
+.settings-toggle { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; background: transparent; color: var(--muted); }
+.settings-toggle:hover, .settings-toggle[aria-expanded='true'] { color: var(--cyan); }
 .settings-toggle:focus-visible, .theme-option:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .theme-menu { position: absolute; z-index: 20; top: calc(100% + 8px); right: 0; width: 254px; max-height: min(420px, 70vh); overflow: auto; padding: 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); box-shadow: 0 16px 40px color-mix(in srgb, var(--bg) 75%, transparent); }
 .theme-menu-title { padding: 9px 10px 8px; color: var(--muted); font-size: 10px; letter-spacing: .1em; }
