@@ -2,13 +2,16 @@
 @import './themes.css';
 :root {
   font-family: 'Geist Mono', monospace;
+  --font-display: 'Geist Mono', monospace;
+  --font-label: 'Geist Mono', monospace;
+  --font-mono: 'Geist Mono', monospace;
   color: var(--fg);
   background: var(--bg);
   font-synthesis: none;
   color-scheme: dark;
 }
 
-* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--accent) var(--surface); }
+*, *::before, *::after { box-sizing: border-box; font-family: 'Geist Mono', monospace; scrollbar-width: thin; scrollbar-color: var(--accent) var(--surface); }
 html, body, #root { margin: 0; min-height: 100%; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
