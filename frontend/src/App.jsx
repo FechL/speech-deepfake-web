@@ -24,7 +24,7 @@ const inferredLabel = file => {
   const folders = (file.webkitRelativePath || '').toLowerCase().split('/');
   return folders.includes('real') ? 0 : folders.includes('fake') ? 1 : null;
 };
-const apiBase = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || (location.port === '5173' ? '' : location.origin);
+const apiBase = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || '';
 
 async function analyze(file, signal) {
   const form = new FormData();
@@ -33,7 +33,11 @@ async function analyze(file, signal) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.status !== 'success') {
     const detail = data.detail;
-    throw new Error(data.message || (Array.isArray(detail) ? detail[0]?.message : detail) || data.errors?.[0]?.message || 'Analysis failed (HTTP ' + response.status + ')');
+    const message = data.message || (Array.isArray(detail) ? detail[0]?.message : detail) || data.errors?.[0]?.message;
+    if (!message && [502, 503, 504].includes(response.status)) {
+      throw new Error('Analysis service is unavailable. Start the backend on port 5001, then try again.');
+    }
+    throw new Error(message || 'Analysis failed (HTTP ' + response.status + ')');
   }
   return data;
 }
