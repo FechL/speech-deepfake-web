@@ -101,6 +101,30 @@ function BatchMetricsTable({ batch }) {
     </tr>)}</tbody></table></div>;
 }
 
+function UnlabeledMetricsTable({ batch }) {
+  const [sort, selectSort] = useTableSort('name');
+  const rows = modelRows.map(model => {
+    const predictions = batch.flatMap(item => {
+      const prediction = item.result?.predictions?.find(row => row.id === model.id);
+      return prediction ? [prediction] : [];
+    });
+    const average = column => {
+      const values = predictions.map(row => row[column]).filter(Number.isFinite);
+      return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+    };
+    return {
+      id: model.id, name: model.name, files: predictions.length, attempted: batch.length,
+      real: predictions.filter(row => row.prediction === 'REAL').length,
+      fake: predictions.filter(row => row.prediction === 'FAKE').length,
+      avgScore: average('score'), avgConfidence: average('confidence'),
+    };
+  });
+  const sortedRows = sortRows(rows, sort, (row, column) => row[column]);
+  const columns = [['Model', 'name'], ['Files', 'files'], ['Pred REAL', 'real'], ['Pred FAKE', 'fake'], ['Avg P(fake)', 'avgScore'], ['Avg confidence', 'avgConfidence']];
+  return <div className="table-scroll model-table"><table><thead><tr>{columns.map(([label, column]) => <SortHeader key={column} label={label} column={column} sort={sort} onSort={selectSort} />)}</tr></thead>
+    <tbody>{sortedRows.map(row => <tr key={row.id}><td className="model-name">{row.name}</td><td>{row.files}/{row.attempted}</td><td>{row.real}</td><td>{row.fake}</td><td>{fmt(row.avgScore)}</td><td>{fmt(row.avgConfidence)}</td></tr>)}</tbody></table></div>;
+}
+
 function Result({ data }) {
   const reportedModels = new Map(data?.predictions?.map(model => [model.id, model]) || []);
   const reportedGroups = new Map(data?.featureGroups?.map(group => [group.id, group]) || []);
@@ -128,11 +152,19 @@ function App() {
   const [singleError, setSingleError] = useState('');
   const [singleBusy, setSingleBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const [batch, setBatch] = useState([]);
-  const [batchBusy, setBatchBusy] = useState(false);
-  const [batchError, setBatchError] = useState('');
+  const [unlabeledBatch, setUnlabeledBatch] = useState([]);
+  const [labeledBatch, setLabeledBatch] = useState([]);
+  const [busyTab, setBusyTab] = useState(null);
+  const [unlabeledError, setUnlabeledError] = useState('');
+  const [labeledError, setLabeledError] = useState('');
   const controller = useRef(null);
   const stop = useRef(false);
+  const isLabeled = tab === 'batch-labeled';
+  const batch = isLabeled ? labeledBatch : unlabeledBatch;
+  const setBatch = isLabeled ? setLabeledBatch : setUnlabeledBatch;
+  const batchError = isLabeled ? labeledError : unlabeledError;
+  const setBatchError = isLabeled ? setLabeledError : setUnlabeledError;
+  const batchBusy = busyTab !== null;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -151,13 +183,15 @@ function App() {
     };
   }, [settingsOpen]);
 
-  const addFiles = useCallback(files => {
+  const addFiles = useCallback((files, labeled, forcedLabel = null) => {
     const list = Array.from(files || []);
     const allowed = list.filter(validAudio);
-    setBatchError(list.length !== allowed.length ? (list.length - allowed.length) + ' files skipped: unsupported format, size, or empty file.' : '');
-    setBatch(current => {
+    const setError = labeled ? setLabeledError : setUnlabeledError;
+    const setRows = labeled ? setLabeledBatch : setUnlabeledBatch;
+    setError(list.length !== allowed.length ? (list.length - allowed.length) + ' files skipped: unsupported format, size, or empty file.' : '');
+    setRows(current => {
       const existing = new Set(current.map(row => row.id));
-      return [...current, ...allowed.filter(file => !existing.has(key(file))).map(file => ({ id: key(file), file, label: inferredLabel(file), status: 'ready', result: null, error: '' }))];
+      return [...current, ...allowed.filter(file => !existing.has(key(file))).map(file => ({ id: key(file), file, label: labeled ? forcedLabel ?? inferredLabel(file) : null, status: 'ready', result: null, error: '' }))];
     });
   }, []);
 
@@ -171,7 +205,7 @@ function App() {
       event.preventDefault();
       setDragActive(false);
       const files = Array.from(event.dataTransfer.files);
-      if (tab === 'batch') { addFiles(files); return; }
+      if (tab !== 'single') { addFiles(files, tab === 'batch-labeled'); return; }
       if (files.length !== 1) {
         setSingleError('Drop one audio file in Single mode, or use Batch for multiple files.');
         return;
@@ -204,7 +238,8 @@ function App() {
   };
   const runBatch = async () => {
     if (!batch.length) return;
-    setBatchBusy(true); setBatchError(''); stop.current = false;
+    if (batchBusy || (isLabeled && batch.some(row => row.label === null))) return;
+    setBusyTab(tab); setBatchError(''); stop.current = false;
     for (const item of batch.filter(row => row.status !== 'done')) {
       if (stop.current) break;
       controller.current = new AbortController();
@@ -220,7 +255,7 @@ function App() {
         setBatch(rows => rows.map(row => row.id === item.id ? { ...row, status: 'error', error: String(error.message) } : row));
       }
     }
-    controller.current = null; setBatchBusy(false);
+    controller.current = null; setBusyTab(null);
   };
   const completed = batch.filter(row => row.status === 'done');
 
@@ -242,20 +277,25 @@ function App() {
           </div>}
         </div>
       </div>
-      <div className="tabs" role="tablist" aria-label="Analysis mode"><button role="tab" aria-selected={tab === 'single'} className={tab === 'single' ? 'active' : ''} onClick={() => setTab('single')}>01 / Single</button><button role="tab" aria-selected={tab === 'batch'} className={tab === 'batch' ? 'active' : ''} onClick={() => setTab('batch')}>02 / Batch</button></div>
+      <div className="tabs" role="tablist" aria-label="Analysis mode"><button role="tab" aria-selected={tab === 'single'} className={tab === 'single' ? 'active' : ''} onClick={() => setTab('single')}>01 / Single</button><button role="tab" aria-selected={tab === 'batch-unlabeled'} className={tab === 'batch-unlabeled' ? 'active' : ''} onClick={() => setTab('batch-unlabeled')}>02 / Batch Unlabeled</button><button role="tab" aria-selected={tab === 'batch-labeled'} className={tab === 'batch-labeled' ? 'active' : ''} onClick={() => setTab('batch-labeled')}>03 / Batch Labeled</button></div>
       {tab === 'single' ? <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="single-controls">
           <label className="dropzone"><input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); setSingleError(''); }} /><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>{singleFile?.name || 'Choose audio file'}</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB · drop anywhere</small></span></label>
           <button className="primary" disabled={!singleFile || singleBusy} onClick={runSingle}>{singleBusy ? 'Analyzing...' : 'Analyze'}</button></div>{singleError && <div className="notice error">{singleError}</div>}</section>
         <Result data={singleResult} />
       </div> : <div className="mode-content" role="tabpanel">
-        <section className="panel input-panel"><div className="batch-import"><label className="import-button">Choose files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} /></label><label className="import-button secondary">Choose REAL/FAKE folder<input type="file" multiple webkitdirectory="" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} /></label><span>{batch.length} files</span></div>
-          <p className="hint">Drop files anywhere · optional labels · REAL/FAKE folders labeled automatically</p>
-          {!!batch.length && <><div className="queue-head"><span>QUEUE</span><div><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 0 })))}>All REAL</button><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 1 })))}>All FAKE</button><button disabled={batchBusy} onClick={() => setBatch([])}>Clear</button></div></div>
-            <div className="queue-list">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div><select aria-label={'Ground truth label for ' + item.file.name} value={item.label ?? ''} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: e.target.value === '' ? null : Number(e.target.value) } : row))}><option value="">Unlabeled</option><option value="0">REAL</option><option value="1">FAKE</option></select><span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
-            <div className="actions"><button className="primary" disabled={batchBusy || batch.every(row => row.status === 'done')} onClick={runBatch}>{batchBusy ? 'Processing batch...' : 'Run batch'}</button>{batchBusy && <button className="secondary-button" onClick={() => { stop.current = true; controller.current?.abort(); }}>Stop</button>}<span>{completed.length}/{batch.length} completed</span></div></>}
+        <section className="panel input-panel"><div className="batch-import">
+          {!isLabeled ? <label className="import-button">Choose files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, false); e.target.value = ''; }} /></label> : <>
+            <label className="import-button">Choose REAL files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, true, 0); e.target.value = ''; }} /></label>
+            <label className="import-button secondary">Choose FAKE files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, true, 1); e.target.value = ''; }} /></label>
+            <label className="import-button secondary">Choose REAL/FAKE folder<input type="file" multiple webkitdirectory="" onChange={e => { addFiles(e.target.files, true); e.target.value = ''; }} /></label>
+          </>}<span>{batch.length} files</span></div>
+          {!!batch.length && <><div className="queue-head"><span>QUEUE</span><div>{isLabeled && <><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 0 })))}>All REAL</button><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 1 })))}>All FAKE</button></>}<button disabled={batchBusy} onClick={() => setBatch([])}>Clear</button></div></div>
+            <div className="queue-list">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div>{isLabeled && <select aria-label={'Ground truth label for ' + item.file.name} disabled={batchBusy} value={item.label ?? ''} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: e.target.value === '' ? null : Number(e.target.value) } : row))}><option value="">Select label</option><option value="0">REAL</option><option value="1">FAKE</option></select>}<span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
+            <div className="actions"><button className="primary" disabled={batchBusy || batch.every(row => row.status === 'done') || (isLabeled && batch.some(row => row.label === null))} onClick={runBatch}>{busyTab === tab ? 'Processing batch...' : 'Run batch'}</button>{batchBusy && <button className="secondary-button" onClick={() => { stop.current = true; controller.current?.abort(); }}>Stop</button>}<span>{completed.length}/{batch.length} completed</span></div>
+            {isLabeled && batch.some(row => row.label === null) && <div className="notice">Select a REAL or FAKE label for every file before running this batch.</div>}</>}
           {batchError && <div className="notice">{batchError}</div>}</section>
-        <section className="panel"><BatchMetricsTable batch={batch} /></section>
+        <section className="panel">{isLabeled ? <BatchMetricsTable batch={batch} /> : <UnlabeledMetricsTable batch={batch} />}</section>
         {!!completed.length && <section className="batch-results">{completed.map(item => <details className="file-detail" key={item.id}><summary><span>{item.file.name}</span><span>{item.label === null ? 'UNLABELED' : item.label ? 'FAKE' : 'REAL'} · {item.result.predictions.length} MODELS</span></summary><Result data={item.result} /></details>)}</section>}
       </div>}
     </main>

@@ -93,7 +93,8 @@
 @media (max-width: 700px) {
   .workspace { padding: 22px 12px 35px; }
   .topbar { margin-bottom: 17px; }
-  .tabs button { flex: 1; padding: 10px 8px; font-size: 11px; }
+  .tabs { overflow-x: auto; }
+  .tabs button { flex: none; padding: 10px 8px; font-size: 11px; white-space: nowrap; }
   .single-controls { align-items: stretch; flex-direction: column; }
   .dropzone { width: 100%; }
   .single-controls .primary { width: 100%; }
