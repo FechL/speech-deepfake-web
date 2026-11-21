@@ -42,7 +42,7 @@
 .file-choice { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .file-choice strong { overflow: hidden; color: var(--fg); font-size: 13px; font-weight: 600; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .file-choice small { overflow: hidden; color: var(--muted); font-size: 11px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-.single-file { display: flex; flex: 1; align-items: center; gap: 14px; min-width: 0; height: 42px; padding: 4px 12px; border: 1px solid var(--border); background: var(--input-bg); }
+.single-file { display: flex; flex: 1; align-items: center; gap: 14px; min-width: 0; height: 42px; }
 .playback-controls { display: flex; flex: none; align-items: center; gap: 8px; min-width: 0; }
 .playback-controls audio { display: none; }
 .playback-toggle { display: grid; flex: none; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--accent); border-radius: 3px; background: var(--active-bg); color: var(--accent); font-size: 13px; }
@@ -115,7 +115,7 @@
   .single-controls > .import-button { padding-inline: 9px; font-size: 11px; }
   .single-controls .primary { padding-inline: 10px; font-size: 11px; }
   .file-choice small { display: none; }
-  .single-file { gap: 7px; padding-inline: 8px; }
+  .single-file { gap: 7px; }
   .playback-controls { gap: 4px; }
   .playback-seek, .playback-time { display: none; }
   .feature-tools { flex-direction: column; }
