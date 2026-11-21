@@ -1,5 +1,5 @@
 """
-DeepGuard Local API Server (Flask)
+DeepForensic Local API Server (Flask)
 Port: 5001
 Supports Model Alvin B4 (XGBoost) and Model Fawwas (Glottal v9)
 """
@@ -80,7 +80,7 @@ def index():
     if DIST_DIR.exists() and (DIST_DIR / "index.html").exists():
         return app.send_static_file("index.html")
     return jsonify({
-        "name": "DeepGuard AI Backend",
+        "name": "DeepForensic Backend",
         "status": "online",
         "ui_directory": str(DIST_DIR)
     })
@@ -456,5 +456,5 @@ def delete_sample(sample_id):
 
 if __name__ == "__main__":
     port = int(os.getenv("DEEPGUARD_PORT", 5001))
-    print(f"[*] DeepGuard local API berjalan di http://127.0.0.1:{port}")
+    print(f"[*] DeepForensic local API running at http://127.0.0.1:{port}")
     app.run(host="127.0.0.1", port=port, debug=False)

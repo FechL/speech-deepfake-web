@@ -74,6 +74,7 @@
 .tabs button:hover { color: var(--fg); }
 .tabs button.active { border-bottom-color: var(--accent); background: var(--active-bg); color: var(--fg); }
 .tabs .configuration-tab { margin-left: auto; }
+.mobile-menu, .mobile-page-nav { display: none; }
 
 .mode-content, .result-stack { display: grid; gap: 12px; }
 .panel { overflow: hidden; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); }
@@ -168,12 +169,20 @@
 
 @media (max-width: 700px) {
   .workspace { padding: 22px 12px 35px; }
-  .topbar { align-items: flex-start; margin-bottom: 17px; }
-  .credits { flex-wrap: wrap; gap: 3px 7px; max-width: 150px; }
+  .topbar { align-items: center; margin-bottom: 17px; }
+  .site-title { font-size: clamp(21px, 5vw, 28px); }
+  .credits { flex-wrap: nowrap; gap: 7px; font-size: 10px; }
+  .tabs { display: none; }
+  .mobile-hidden { display: none !important; }
+  .mobile-menu { display: grid; align-content: start; min-height: calc(100dvh - 95px); border-top: 1px solid var(--border); }
+  .mobile-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 67px; padding: 17px 12px; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--fg); font-size: 15px; text-align: left; }
+  .mobile-menu button:hover, .mobile-menu button:focus-visible { background: var(--active-bg); color: var(--accent); }
+  .mobile-menu button span:last-child { color: var(--accent); font-size: 20px; }
+  .mobile-page-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding-bottom: 11px; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 11px; }
+  .mobile-page-nav button { padding: 3px 0; border: 0; background: transparent; color: var(--accent); font-size: 12px; }
+  .mobile-page-nav button:hover { color: var(--fg); }
   .readme-panel { padding: 16px; }
   .theme-grid { grid-template-columns: 1fr; }
-  .tabs { overflow-x: auto; }
-  .tabs button { flex: none; padding: 10px 8px; font-size: 11px; white-space: nowrap; }
   .single-controls > .import-button { padding-inline: 9px; font-size: 11px; }
   .single-controls .primary, .single-controls .secondary-button { padding-inline: 10px; font-size: 11px; }
   .file-choice small { display: none; }

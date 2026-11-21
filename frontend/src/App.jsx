@@ -21,6 +21,13 @@ const groupTitles = {
   glottal_g2: 'Glottal G2 · Harmonics',
   glottal_qc: 'Glottal measurement quality',
 };
+const tabItems = [
+  { id: 'readme', label: '00 / README.md' },
+  { id: 'single', label: '01 / Single' },
+  { id: 'batch-unlabeled', label: '02 / Batch Unlabeled' },
+  { id: 'batch-labeled', label: '03 / Batch Labeled' },
+  { id: 'configuration', label: '99 / Configuration' },
+];
 const englishGroup = group => ({ ...group, title: groupTitles[group.id] || group.title });
 const modelRows = catalog.models.map(model => ({ ...model, score: null, prediction: null, confidence: null }));
 const featureGroups = catalog.featureGroups.map(group => ({ id: group.id, title: groupTitles[group.id] || group.title, values: group.names.map(name => ({ name, value: null })) }));
@@ -255,7 +262,8 @@ function NotificationCard({ item, onClose }) {
 }
 
 function App() {
-  const [tab, setTab] = useState('single');
+  const [tab, setTab] = useState('readme');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(true);
   const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem('deepguard-theme');
@@ -313,15 +321,16 @@ function App() {
 
   useEffect(() => {
     const isFileDrag = event => Array.from(event.dataTransfer?.types || []).includes('Files');
-    const onDragEnter = event => { if (isFileDrag(event)) { event.preventDefault(); if (tab !== 'readme' && tab !== 'configuration') setDragActive(true); } };
-    const onDragOver = event => { if (isFileDrag(event)) { event.preventDefault(); event.dataTransfer.dropEffect = tab === 'readme' || tab === 'configuration' ? 'none' : 'copy'; if (tab !== 'readme' && tab !== 'configuration') { setDragActive(true); setDragSide(tab === 'batch-labeled' ? (event.clientX >= window.innerWidth / 2 ? 'fake' : 'real') : null); } } };
+    const menuIsVisible = () => mobileMenuOpen && window.matchMedia('(max-width: 700px)').matches;
+    const onDragEnter = event => { if (isFileDrag(event)) { event.preventDefault(); if (!menuIsVisible() && tab !== 'readme' && tab !== 'configuration') setDragActive(true); } };
+    const onDragOver = event => { if (isFileDrag(event)) { event.preventDefault(); event.dataTransfer.dropEffect = menuIsVisible() || tab === 'readme' || tab === 'configuration' ? 'none' : 'copy'; if (!menuIsVisible() && tab !== 'readme' && tab !== 'configuration') { setDragActive(true); setDragSide(tab === 'batch-labeled' ? (event.clientX >= window.innerWidth / 2 ? 'fake' : 'real') : null); } } };
     const onDragLeave = event => { if (!event.relatedTarget) { setDragActive(false); setDragSide(null); } };
     const onDrop = event => {
       if (!isFileDrag(event)) return;
       event.preventDefault();
       setDragActive(false);
       setDragSide(null);
-      if (tab === 'readme' || tab === 'configuration') return;
+      if (menuIsVisible() || tab === 'readme' || tab === 'configuration') return;
       const files = Array.from(event.dataTransfer.files);
       if (tab !== 'single') { addFiles(files, tab === 'batch-labeled', tab === 'batch-labeled' ? Number(event.clientX >= window.innerWidth / 2) : null); return; }
       if (files.length !== 1) {
@@ -345,7 +354,7 @@ function App() {
       window.removeEventListener('dragleave', onDragLeave);
       window.removeEventListener('drop', onDrop);
     };
-  }, [tab, addFiles, pushNotification]);
+  }, [tab, mobileMenuOpen, addFiles, pushNotification]);
 
   useEffect(() => {
     if (tab === 'readme' || tab === 'configuration') { setDragActive(false); setDragSide(null); }
@@ -380,15 +389,25 @@ function App() {
     controller.current = null; setBusyTab(null);
   };
   const completed = batch.filter(row => row.status === 'done');
+  const selectTab = id => {
+    setTab(id);
+    setMobileMenuOpen(false);
+    window.scrollTo(0, 0);
+  };
 
   return <div className="terminal-app">
     {dragActive && <div className={'page-drop-overlay' + (isLabeled ? ' labeled' : ' active')} aria-hidden="true">{isLabeled ? <><span className={dragSide === 'real' ? 'active' : ''}>DROP REAL FILES</span><span className={dragSide === 'fake' ? 'active' : ''}>DROP FAKE FILES</span></> : <span>DROP AUDIO {tab === 'single' ? 'FILE' : 'FILES'} ANYWHERE</span>}</div>}
     <main className="workspace">
       <div className="topbar">
-        <h1 className="site-title">DEEPGUARD</h1>
+        <h1 className="site-title">DEEPFORENSIC</h1>
         <div className="credits"><a href="https://github.com/FechL" target="_blank" rel="noopener noreferrer">FechL</a><span aria-hidden="true">·</span><a href="https://github.com/alvinrw" target="_blank" rel="noopener noreferrer">alvinrw</a></div>
       </div>
-      <div className="tabs" role="tablist" aria-label="Analysis mode"><button role="tab" aria-selected={tab === 'readme'} className={tab === 'readme' ? 'active' : ''} onClick={() => setTab('readme')}>00 / README.md</button><button role="tab" aria-selected={tab === 'single'} className={tab === 'single' ? 'active' : ''} onClick={() => setTab('single')}>01 / Single</button><button role="tab" aria-selected={tab === 'batch-unlabeled'} className={tab === 'batch-unlabeled' ? 'active' : ''} onClick={() => setTab('batch-unlabeled')}>02 / Batch Unlabeled</button><button role="tab" aria-selected={tab === 'batch-labeled'} className={tab === 'batch-labeled' ? 'active' : ''} onClick={() => setTab('batch-labeled')}>03 / Batch Labeled</button><button role="tab" aria-selected={tab === 'configuration'} className={'configuration-tab' + (tab === 'configuration' ? ' active' : '')} onClick={() => setTab('configuration')}>99 / Configuration</button></div>
+      <div className="tabs" role="tablist" aria-label="Analysis mode">{tabItems.map(item => <button key={item.id} role="tab" aria-selected={tab === item.id} className={(item.id === 'configuration' ? 'configuration-tab ' : '') + (tab === item.id ? 'active' : '')} onClick={() => selectTab(item.id)}>{item.label}</button>)}</div>
+      <nav className={'mobile-menu' + (mobileMenuOpen ? '' : ' mobile-hidden')} aria-label="Pages">
+        {tabItems.map(item => <button type="button" key={item.id} onClick={() => selectTab(item.id)}><span>{item.label}</span><span aria-hidden="true">→</span></button>)}
+      </nav>
+      <div className={'mobile-page' + (mobileMenuOpen ? ' mobile-hidden' : '')}>
+      <div className="mobile-page-nav"><button type="button" onClick={() => { setMobileMenuOpen(true); setDragActive(false); setDragSide(null); window.scrollTo(0, 0); }}>← Menu</button><span>{tabItems.find(item => item.id === tab)?.label}</span></div>
       {tab === 'readme' ? <Readme /> : tab === 'configuration' ? <Configuration theme={theme} onThemeChange={setTheme} /> : tab === 'single' ? <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="single-controls">
           <label className="import-button">Choose file<input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); e.target.value = ''; }} /></label>
@@ -410,6 +429,7 @@ function App() {
         <section className="panel">{isLabeled ? <BatchMetricsTable batch={batch} /> : <UnlabeledMetricsTable batch={batch} />}</section>
         {!!completed.length && <section className="batch-results">{completed.map(item => <details className="file-detail" key={item.id}><summary><span>{item.file.name}</span><span>{item.label === null ? 'UNLABELED' : item.label ? 'FAKE' : 'REAL'} · {item.result.predictions.length} MODELS</span></summary><Result data={item.result} /></details>)}</section>}
       </div>}
+      </div>
     </main>
     {!!notifications.length && <div className="notification-stack" aria-label="Notifications">
       {notifications.slice().reverse().map(item => <NotificationCard key={item.id} item={item} onClose={dismissNotification} />)}

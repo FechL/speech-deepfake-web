@@ -1,4 +1,4 @@
-# DeepGuard model bundle
+# DeepForensic model bundle
 
 This bundle collects the model artifacts found in `speech-deepfake-web` and three distinct local glottal seed bundles in the run referenced by `models/registry.json`. The ten residual checkpoint files named in the registry are byte-for-byte identical to the files inside the Alvin ZIP, so they are included once in that archive. The three Fawwas ZIP files were retrieved from this repository's Git LFS storage and verified against their LFS SHA-256 identifiers.
 

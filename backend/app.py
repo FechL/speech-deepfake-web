@@ -1,9 +1,9 @@
 """
-DeepGuard Audio Forensic Verification API
+DeepForensic Audio Verification API
 Integrates:
   - Model Alvin B4 (XGBoost baseline - 280 features)
   - Model Fawwas (Glottal v9)
-Serves the approved DeepGuard Cyberpunk/Glassmorphism Web UI from dist/.
+Serves the DeepForensic web UI from dist/.
 """
 
 import os
@@ -25,7 +25,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from backend.deepguard_engine import engine, ALLOWED_EXTENSIONS
 
 app = FastAPI(
-    title="DeepGuard AI - Forensic Voice Verification API",
+    title="DeepForensic - Forensic Speech Deepfake API",
     version="2.0.0",
     description="Dual-model deepfake and audio forensic verification system (Model Alvin & Model Fawwas)"
 )
