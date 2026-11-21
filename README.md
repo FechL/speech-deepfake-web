@@ -102,6 +102,7 @@ Nilai threshold disimpan di dokumentasi ini sebagai referensi; nilai tersebut ti
 
 - Tampilan ringkas bertema terminal memakai Geist Mono dengan judul **DEEPGUARD** di atas.
 - Dua tab langsung: **Satu audio** dan **Batch**. Format: WAV, MP3, M4A, FLAC, WebM, OGG; maksimum 25 MB per file.
+- Tabel model, fitur, dan metrik batch tampil sejak halaman dibuka. Daftar awal berasal dari checkpoint dan definisi fitur di `frontend/src/analysisCatalog.json`; nilai hasil analisis yang belum tersedia ditandai `—`.
 - `POST /api/analyze` menjalankan semua checkpoint Alvin dan Fawwas yang tersedia. Respons berisi prediksi per model, ambang keputusan beku, serta tabel nilai fitur MFCC/LFCC, residual LPC, modulasi, glotal G0/G1/G2, dan QC.
 - Jalur Alvin dan Fawwas diekstrak masing-masing satu kali per audio. Jika satu jalur gagal, hasil jalur yang berhasil tetap ditampilkan bersama alasan kegagalannya.
 - Pada **Satu audio**, keputusan dan confidence tiap model ditampilkan langsung dalam tabel. Confidence adalah probabilitas kelas hasil model (`P(FAKE)` atau `1-P(FAKE)`), **bukan** kalibrasi kepastian forensik.

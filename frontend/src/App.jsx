@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import catalog from './analysisCatalog.json';
 import { batchMetrics } from './metrics';
 import './App.css';
 
@@ -6,6 +7,8 @@ const EXTENSIONS = new Set(['wav', 'mp3', 'm4a', 'webm', 'ogg', 'flac']);
 const fmt = value => value === null || value === undefined ? '—' : (value * 100).toFixed(1) + '%';
 const num = value => value === null || value === undefined || !Number.isFinite(value) ? '—' : Number(value).toFixed(4);
 const key = file => (file.webkitRelativePath || file.name) + ':' + file.size + ':' + file.lastModified;
+const modelRows = catalog.models.map(model => ({ ...model, score: null, prediction: null, confidence: null }));
+const featureGroups = catalog.featureGroups.map(group => ({ id: group.id, title: group.title, values: group.names.map(name => ({ name, value: null })) }));
 const inferredLabel = file => {
   const folders = (file.webkitRelativePath || '').toLowerCase().split('/');
   return folders.includes('real') ? 0 : folders.includes('fake') ? 1 : null;
@@ -48,15 +51,19 @@ function Predictions({ predictions }) {
   return <div className="table-scroll"><table><thead><tr><th>Model</th><th>Fitur</th><th>P(fake)</th><th>Ambang</th><th>Keputusan</th><th title="Probabilitas kelas hasil model; belum dikalibrasi sebagai kepastian forensik.">Confidence</th></tr></thead>
     <tbody>{predictions.map(p => <tr key={p.id}>
       <td className="model-name">{p.name}</td><td>{p.feature_count}</td><td className="mono">{fmt(p.score)}</td><td className="mono">{fmt(p.threshold)}</td>
-      <td><span className={'tag ' + (p.prediction === 'FAKE' ? 'fake' : 'real')}>{p.prediction}</span></td><td className="mono">{fmt(p.confidence)}</td>
+      <td>{p.prediction ? <span className={'tag ' + (p.prediction === 'FAKE' ? 'fake' : 'real')}>{p.prediction}</span> : '—'}</td><td className="mono">{fmt(p.confidence)}</td>
     </tr>)}</tbody></table></div>;
 }
 
 function Result({ data }) {
+  const reportedModels = new Map(data?.predictions?.map(model => [model.id, model]) || []);
+  const reportedGroups = new Map(data?.featureGroups?.map(group => [group.id, group]) || []);
+  const predictions = modelRows.map(model => ({ ...model, ...reportedModels.get(model.id) }));
+  const groups = featureGroups.map(group => reportedGroups.get(group.id) || group);
   return <div className="result-stack">
-    {data.errors?.length > 0 && <div className="notice">{data.errors.map((error, i) => <div key={i}>{error.source}: {error.message}</div>)}</div>}
-    <section className="panel"><Predictions predictions={data.predictions} /></section>
-    <section className="panel"><FeatureTable groups={data.featureGroups} /></section>
+    {data?.errors?.length > 0 && <div className="notice">{data.errors.map((error, i) => <div key={i}>{error.source}: {error.message}</div>)}</div>}
+    <section className="panel"><Predictions predictions={predictions} /></section>
+    <section className="panel"><FeatureTable groups={groups} /></section>
   </div>;
 }
 
@@ -109,7 +116,7 @@ function App() {
     controller.current = null; setBatchBusy(false);
   };
   const completed = batch.filter(row => row.status === 'done');
-  const models = [...new Map(completed.flatMap(row => row.result.predictions).map(p => [p.id, p])).values()];
+  const models = modelRows;
 
   return <div className="terminal-app">
     <main className="workspace">
@@ -119,7 +126,7 @@ function App() {
         <section className="panel input-panel"><div className="single-controls">
           <label className="dropzone"><input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); setSingleError(''); }} /><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>{singleFile?.name || 'Pilih file audio'}</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · maks. 25 MB</small></span></label>
           <button className="primary" disabled={!singleFile || singleBusy} onClick={runSingle}>{singleBusy ? 'Menganalisis...' : 'Analisis'}</button></div>{singleError && <div className="notice error">{singleError}</div>}</section>
-        {singleResult && <Result data={singleResult} />}
+        <Result data={singleResult} />
       </div> : <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="batch-import"><label className="import-button">Pilih banyak file<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} /></label><label className="import-button secondary">Pilih folder REAL/FAKE<input type="file" multiple webkitdirectory="" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} /></label><span>{batch.length} file</span></div>
           <p className="hint">Label opsional · folder REAL/FAKE otomatis</p>
@@ -127,7 +134,7 @@ function App() {
             <div className="queue-list">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' model · ' + item.result.featureGroups.length + ' kelompok fitur' : item.status === 'running' ? 'Sedang dianalisis...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div><select aria-label={'Label asli ' + item.file.name} value={item.label ?? ''} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: e.target.value === '' ? null : Number(e.target.value) } : row))}><option value="">Tanpa label</option><option value="0">REAL</option><option value="1">FAKE</option></select><span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
             <div className="actions"><button className="primary" disabled={batchBusy || batch.every(row => row.status === 'done')} onClick={runBatch}>{batchBusy ? 'Memproses batch...' : 'Jalankan batch'}</button>{batchBusy && <button className="secondary-button" onClick={() => { stop.current = true; controller.current?.abort(); }}>Hentikan</button>}<span>{completed.length}/{batch.length} selesai</span></div></>}
           {batchError && <div className="notice">{batchError}</div>}</section>
-        {!!completed.length && <section className="panel"><div className="table-scroll"><table><thead><tr><th>Model</th><th>File</th><th>Berlabel</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th><th>Balanced acc.</th><th>AUC</th><th>EER</th><th>TP / FP / TN / FN</th></tr></thead><tbody>{models.map(model => { const m = batchMetrics(batch, model.id); return <tr key={model.id}><td className="model-name">{model.name}</td><td>{m.scored}/{m.attempted}</td><td>{m.labeled}</td><td>{fmt(m.accuracy)}</td><td>{fmt(m.precision)}</td><td>{fmt(m.recall)}</td><td>{fmt(m.f1)}</td><td>{fmt(m.balancedAccuracy)}</td><td>{fmt(m.auc)}</td><td>{fmt(m.eer)}</td><td>{m.tp} / {m.fp} / {m.tn} / {m.fn}</td></tr>; })}</tbody></table></div></section>}
+        <section className="panel"><div className="table-scroll"><table><thead><tr><th>Model</th><th>File</th><th>Berlabel</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th><th>Balanced acc.</th><th>AUC</th><th>EER</th><th>TP / FP / TN / FN</th></tr></thead><tbody>{models.map(model => { const m = batchMetrics(batch, model.id); return <tr key={model.id}><td className="model-name">{model.name}</td><td>{m.scored}/{m.attempted}</td><td>{m.labeled}</td><td>{fmt(m.accuracy)}</td><td>{fmt(m.precision)}</td><td>{fmt(m.recall)}</td><td>{fmt(m.f1)}</td><td>{fmt(m.balancedAccuracy)}</td><td>{fmt(m.auc)}</td><td>{fmt(m.eer)}</td><td>{m.labeled ? `${m.tp} / ${m.fp} / ${m.tn} / ${m.fn}` : '—'}</td></tr>; })}</tbody></table></div></section>
         {!!completed.length && <section className="batch-results">{completed.map(item => <details className="file-detail" key={item.id}><summary><span>{item.file.name}</span><span>{item.label === null ? 'TANPA LABEL' : item.label ? 'FAKE' : 'REAL'} · {item.result.predictions.length} MODEL</span></summary><Result data={item.result} /></details>)}</section>}
       </div>}
     </main>
