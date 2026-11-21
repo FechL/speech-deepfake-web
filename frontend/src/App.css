@@ -113,7 +113,7 @@
   .tabs { overflow-x: auto; }
   .tabs button { flex: none; padding: 10px 8px; font-size: 11px; white-space: nowrap; }
   .single-controls > .import-button { padding-inline: 9px; font-size: 11px; }
-  .single-controls .primary { padding-inline: 10px; font-size: 11px; }
+  .single-controls .primary, .single-controls .secondary-button { padding-inline: 10px; font-size: 11px; }
   .file-choice small { display: none; }
   .single-file { gap: 7px; }
   .playback-controls { gap: 4px; }
