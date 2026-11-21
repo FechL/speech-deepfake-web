@@ -48,6 +48,7 @@
 .table-scroll table { width: 100%; min-width: 770px; border-collapse: collapse; text-align: left; font-size: 12px; }
 .table-scroll th { position: sticky; top: 0; padding: 0; border-bottom: 1px solid var(--border); background: var(--raised); color: var(--head-fg); font-size: 10px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
 .sort-header { display: block; width: 100%; padding: 10px 13px; border: 0; background: transparent; color: inherit; text-align: inherit; font-size: inherit; font-weight: inherit; letter-spacing: inherit; text-transform: inherit; white-space: nowrap; }
+.sort-indicator { margin-left: 6px; color: var(--accent); font-size: 12px; letter-spacing: 0; }
 .sort-header:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .table-scroll td { padding: 9px 13px; border-bottom: 1px solid var(--soft-border); color: var(--fg); white-space: nowrap; }
 .table-scroll tbody tr:hover { background: var(--hover-bg); }

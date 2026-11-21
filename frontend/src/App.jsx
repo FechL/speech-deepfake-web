@@ -40,7 +40,7 @@ async function analyze(file, signal) {
 function SortHeader({ label, column, sort, onSort, title }) {
   const direction = sort.key === column ? sort.direction : null;
   return <th scope="col" aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none'}>
-    <button type="button" className="sort-header" title={title} onClick={() => onSort(column)}>{label}</button>
+    <button type="button" className="sort-header" title={title} onClick={() => onSort(column)}>{label}{direction && <span className="sort-indicator" aria-hidden="true">{direction === 'asc' ? '↑' : '↓'}</span>}</button>
   </th>;
 }
 
