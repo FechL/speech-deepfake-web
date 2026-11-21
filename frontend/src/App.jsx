@@ -20,10 +20,6 @@ const groupTitles = {
 const englishGroup = group => ({ ...group, title: groupTitles[group.id] || group.title });
 const modelRows = catalog.models.map(model => ({ ...model, score: null, prediction: null, confidence: null }));
 const featureGroups = catalog.featureGroups.map(group => ({ id: group.id, title: groupTitles[group.id] || group.title, values: group.names.map(name => ({ name, value: null })) }));
-const inferredLabel = file => {
-  const folders = (file.webkitRelativePath || '').toLowerCase().split('/');
-  return folders.includes('real') ? 0 : folders.includes('fake') ? 1 : null;
-};
 const apiBase = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || '';
 
 async function analyze(file, signal) {
@@ -195,7 +191,7 @@ function App() {
     setError(list.length !== allowed.length ? (list.length - allowed.length) + ' files skipped: unsupported format, size, or empty file.' : '');
     setRows(current => {
       const existing = new Set(current.map(row => row.id));
-      return [...current, ...allowed.filter(file => !existing.has(key(file))).map(file => ({ id: key(file), file, label: labeled ? forcedLabel ?? inferredLabel(file) : null, status: 'ready', result: null, error: '' }))];
+      return [...current, ...allowed.filter(file => !existing.has(key(file))).map(file => ({ id: key(file), file, label: labeled ? forcedLabel : null, status: 'ready', result: null, error: '' }))];
     });
   }, []);
 
@@ -209,7 +205,7 @@ function App() {
       event.preventDefault();
       setDragActive(false);
       const files = Array.from(event.dataTransfer.files);
-      if (tab !== 'single') { addFiles(files, tab === 'batch-labeled'); return; }
+      if (tab !== 'single') { addFiles(files, tab === 'batch-labeled', tab === 'batch-labeled' ? Number(event.clientX >= window.innerWidth / 2) : null); return; }
       if (files.length !== 1) {
         setSingleError('Drop one audio file in Single mode, or use Batch for multiple files.');
         return;
@@ -264,7 +260,7 @@ function App() {
   const completed = batch.filter(row => row.status === 'done');
 
   return <div className="terminal-app">
-    {dragActive && <div className="page-drop-overlay" aria-hidden="true"><span>DROP AUDIO {tab === 'single' ? 'FILE' : 'FILES'} ANYWHERE</span></div>}
+    {dragActive && <div className={'page-drop-overlay' + (isLabeled ? ' labeled' : '')} aria-hidden="true">{isLabeled ? <><span>DROP REAL FILES</span><span>DROP FAKE FILES</span></> : <span>DROP AUDIO {tab === 'single' ? 'FILE' : 'FILES'} ANYWHERE</span>}</div>}
     <main className="workspace">
       <div className="topbar">
         <h1 className="site-title">DEEPGUARD</h1>
@@ -284,20 +280,22 @@ function App() {
       <div className="tabs" role="tablist" aria-label="Analysis mode"><button role="tab" aria-selected={tab === 'single'} className={tab === 'single' ? 'active' : ''} onClick={() => setTab('single')}>01 / Single</button><button role="tab" aria-selected={tab === 'batch-unlabeled'} className={tab === 'batch-unlabeled' ? 'active' : ''} onClick={() => setTab('batch-unlabeled')}>02 / Batch Unlabeled</button><button role="tab" aria-selected={tab === 'batch-labeled'} className={tab === 'batch-labeled' ? 'active' : ''} onClick={() => setTab('batch-labeled')}>03 / Batch Labeled</button></div>
       {tab === 'single' ? <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="single-controls">
-          <label className="dropzone"><input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); setSingleError(''); }} /><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>{singleFile?.name || 'Choose audio file'}</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB · drop anywhere</small></span></label>
+          <label className="import-button">Choose file<input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); setSingleError(''); }} /></label>
+          <div className="dropzone"><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>{singleFile?.name || 'Drop audio here'}</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB</small></span></div>
           <button className="primary" disabled={!singleFile || singleBusy} onClick={runSingle}>{singleBusy ? 'Analyzing...' : 'Analyze'}</button></div>{singleError && <div className="notice error">{singleError}</div>}</section>
         <Result data={singleResult} />
       </div> : <div className="mode-content" role="tabpanel">
-        <section className="panel input-panel"><div className="batch-import">
-          {!isLabeled ? <label className="import-button">Choose files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, false); e.target.value = ''; }} /></label> : <>
-            <label className="import-button">Choose REAL files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, true, 0); e.target.value = ''; }} /></label>
-            <label className="import-button secondary">Choose FAKE files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, true, 1); e.target.value = ''; }} /></label>
-            <label className="import-button secondary">Choose REAL/FAKE folder<input type="file" multiple webkitdirectory="" onChange={e => { addFiles(e.target.files, true); e.target.value = ''; }} /></label>
-          </>}<span>{batch.length} files</span></div>
+        <section className="panel input-panel"><div className={'batch-import' + (isLabeled ? ' labeled-import' : '')}>
+          {!isLabeled ? <><label className="import-button">Choose files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, false); e.target.value = ''; }} /></label><span>{batch.length} files</span></> : <>
+            {[{ label: 'REAL', value: 0 }, { label: 'FAKE', value: 1 }].map(zone => <div className="labeled-zone" key={zone.label} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); e.stopPropagation(); setDragActive(false); addFiles(e.dataTransfer.files, true, zone.value); }}>
+              <div><strong>{zone.label}</strong><small>Drop files here</small></div>
+              <label className="import-button">Choose {zone.label} files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files, true, zone.value); e.target.value = ''; }} /></label>
+            </div>)}
+          </>}</div>
           {!!batch.length && <><div className="queue-head"><span>QUEUE</span><div>{isLabeled && <><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 0 })))}>All REAL</button><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 1 })))}>All FAKE</button></>}<button disabled={batchBusy} onClick={() => setBatch([])}>Clear</button></div></div>
-            <div className="queue-list">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div>{isLabeled && <select aria-label={'Ground truth label for ' + item.file.name} disabled={batchBusy} value={item.label ?? ''} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: e.target.value === '' ? null : Number(e.target.value) } : row))}><option value="">Select label</option><option value="0">REAL</option><option value="1">FAKE</option></select>}<span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
+            <div className="queue-list" tabIndex="0">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div>{isLabeled && <select aria-label={'Ground truth label for ' + item.file.name} disabled={batchBusy} value={item.label ?? ''} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: e.target.value === '' ? null : Number(e.target.value) } : row))}><option value="">Select label</option><option value="0">REAL</option><option value="1">FAKE</option></select>}<span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
             <div className="actions"><button className="primary" disabled={batchBusy || batch.every(row => row.status === 'done') || (isLabeled && batch.some(row => row.label === null))} onClick={runBatch}>{busyTab === tab ? 'Processing batch...' : 'Run batch'}</button>{batchBusy && <button className="secondary-button" onClick={() => { stop.current = true; controller.current?.abort(); }}>Stop</button>}<span>{completed.length}/{batch.length} completed</span></div>
-            {isLabeled && batch.some(row => row.label === null) && <div className="notice">Select a REAL or FAKE label for every file before running this batch.</div>}</>}
+            </>}
           {batchError && <div className="notice">{batchError}</div>}</section>
         <section className="panel">{isLabeled ? <BatchMetricsTable batch={batch} /> : <UnlabeledMetricsTable batch={batch} />}</section>
         {!!completed.length && <section className="batch-results">{completed.map(item => <details className="file-detail" key={item.id}><summary><span>{item.file.name}</span><span>{item.label === null ? 'UNLABELED' : item.label ? 'FAKE' : 'REAL'} · {item.result.predictions.length} MODELS</span></summary><Result data={item.result} /></details>)}</section>}
