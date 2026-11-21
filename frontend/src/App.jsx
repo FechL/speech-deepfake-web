@@ -9,6 +9,7 @@ const EXTENSIONS = new Set(['wav', 'mp3', 'm4a', 'webm', 'ogg', 'flac']);
 const validAudio = file => EXTENSIONS.has(file.name.split('.').pop().toLowerCase()) && file.size > 0 && file.size <= 25 * 1024 * 1024;
 const fmt = value => value === null || value === undefined ? '—' : (value * 100).toFixed(1) + '%';
 const num = value => value === null || value === undefined || !Number.isFinite(value) ? '—' : Number(value).toFixed(4);
+const time = seconds => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 const key = file => (file.webkitRelativePath || file.name) + ':' + file.size + ':' + file.lastModified;
 const groupTitles = {
   modulation: 'Modulation spectrum',
@@ -134,6 +135,35 @@ function Result({ data }) {
     {data?.errors?.length > 0 && <div className="notice">{data.errors.map((error, i) => <div key={i}>{error.source}: {error.message}</div>)}</div>}
     <section className="panel"><Predictions predictions={predictions} /></section>
     <section className="panel"><FeatureTable groups={groups} /></section>
+  </div>;
+}
+
+function SingleAudioPlayer({ file }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    const url = URL.createObjectURL(file);
+    audio.src = url;
+    audio.load();
+    return () => { audio.pause(); URL.revokeObjectURL(url); };
+  }, [file]);
+
+  const toggle = async () => {
+    const audio = audioRef.current;
+    if (audio.paused) {
+      try { await audio.play(); } catch { setPlaying(false); }
+    } else audio.pause();
+  };
+
+  return <div className="playback-controls">
+    <audio ref={audioRef} preload="metadata" onLoadedMetadata={e => setDuration(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)} onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
+    <button type="button" className="playback-toggle" aria-label={playing ? 'Pause audio' : 'Play audio'} onClick={toggle}>{playing ? 'Ⅱ' : '▶'}</button>
+    <input type="range" className="playback-seek" aria-label="Seek audio" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={e => { audioRef.current.currentTime = Number(e.target.value); setCurrentTime(Number(e.target.value)); }} />
+    <span className="playback-time">{time(currentTime)} / {time(duration)}</span>
   </div>;
 }
 
@@ -283,7 +313,7 @@ function App() {
       {tab === 'single' ? <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="single-controls">
           <label className="import-button">Choose file<input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); setSingleError(''); }} /></label>
-          <div className="dropzone"><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>{singleFile?.name || 'Drop audio here'}</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB</small></span></div>
+          {singleFile ? <div className="single-file"><div className="queue-name"><strong title={singleFile.name}>{singleFile.name}</strong><small>{(singleFile.size / 1048576).toFixed(2)} MB</small></div><SingleAudioPlayer key={key(singleFile)} file={singleFile} /></div> : <div className="dropzone"><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>Drop audio here</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB</small></span></div>}
           {singleFile && <button className="primary" disabled={singleBusy} onClick={runSingle}>{singleBusy ? 'Running...' : 'Run'}</button>}</div>{singleError && <div className="notice error">{singleError}</div>}</section>
         <Result data={singleResult} />
       </div> : <div className="mode-content" role="tabpanel">
