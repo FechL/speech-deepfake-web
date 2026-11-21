@@ -1,0 +1,5 @@
+- dikanan atas ganti menjadi credit github FechL dan alvinrw
+- tambahkan 00 / README.md
+- tambahkan 99 / Configuration
+- perbaiki commit nya agar bisa push
+- buatkan script untuk menyalakan dev dengan .sh

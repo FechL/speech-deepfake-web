@@ -138,7 +138,7 @@ function Result({ data }) {
   </div>;
 }
 
-function SingleAudioPlayer({ file }) {
+function AudioPlayer({ file, compact = false }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -159,10 +159,10 @@ function SingleAudioPlayer({ file }) {
     } else audio.pause();
   };
 
-  return <div className="playback-controls">
+  return <div className={'playback-controls' + (compact ? ' queue-playback' : '')}>
     <audio ref={audioRef} preload="metadata" onLoadedMetadata={e => setDuration(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)} onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
-    <button type="button" className="playback-toggle" aria-label={playing ? 'Pause audio' : 'Play audio'} onClick={toggle}>{playing ? 'Ⅱ' : '▶'}</button>
-    <input type="range" className="playback-seek" aria-label="Seek audio" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={e => { audioRef.current.currentTime = Number(e.target.value); setCurrentTime(Number(e.target.value)); }} />
+    <button type="button" className="playback-toggle" aria-label={(playing ? 'Pause ' : 'Play ') + file.name} onClick={toggle}>{playing ? 'Ⅱ' : '▶'}</button>
+    <input type="range" className="playback-seek" aria-label={'Seek ' + file.name} min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={e => { audioRef.current.currentTime = Number(e.target.value); setCurrentTime(Number(e.target.value)); }} />
     <span className="playback-time">{time(currentTime)} / {time(duration)}</span>
   </div>;
 }
@@ -292,7 +292,7 @@ function App() {
   const completed = batch.filter(row => row.status === 'done');
 
   return <div className="terminal-app">
-    {dragActive && <div className={'page-drop-overlay' + (isLabeled ? ' labeled' : '')} aria-hidden="true">{isLabeled ? <><span className={dragSide === 'real' ? 'active' : ''}>DROP REAL FILES</span><span className={dragSide === 'fake' ? 'active' : ''}>DROP FAKE FILES</span></> : <span>DROP AUDIO {tab === 'single' ? 'FILE' : 'FILES'} ANYWHERE</span>}</div>}
+    {dragActive && <div className={'page-drop-overlay' + (isLabeled ? ' labeled' : ' active')} aria-hidden="true">{isLabeled ? <><span className={dragSide === 'real' ? 'active' : ''}>DROP REAL FILES</span><span className={dragSide === 'fake' ? 'active' : ''}>DROP FAKE FILES</span></> : <span>DROP AUDIO {tab === 'single' ? 'FILE' : 'FILES'} ANYWHERE</span>}</div>}
     <main className="workspace">
       <div className="topbar">
         <h1 className="site-title">DEEPGUARD</h1>
@@ -313,7 +313,7 @@ function App() {
       {tab === 'single' ? <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="single-controls">
           <label className="import-button">Choose file<input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); setSingleError(''); e.target.value = ''; }} /></label>
-          {singleFile ? <div className="single-file"><div className="queue-name"><strong title={singleFile.name}>{singleFile.name}</strong><small>{(singleFile.size / 1048576).toFixed(2)} MB</small></div><SingleAudioPlayer key={key(singleFile)} file={singleFile} /></div> : <div className="dropzone"><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>Drop audio here</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB</small></span></div>}
+          {singleFile ? <div className="single-file"><div className="queue-name"><strong title={singleFile.name}>{singleFile.name}</strong><small>{(singleFile.size / 1048576).toFixed(2)} MB</small></div><AudioPlayer key={key(singleFile)} file={singleFile} /></div> : <div className="dropzone"><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>Drop audio here</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB</small></span></div>}
           {singleFile && <><button className="primary" disabled={singleBusy} onClick={runSingle}>{singleBusy ? 'Running...' : 'Run'}</button><button className="secondary-button" disabled={singleBusy} onClick={() => { setSingleFile(null); setSingleResult(null); setSingleError(''); }}>Clear</button></>}</div>{singleError && <div className="notice error">{singleError}</div>}</section>
         <Result data={singleResult} />
       </div> : <div className="mode-content" role="tabpanel">
@@ -324,7 +324,7 @@ function App() {
             <span>{batch.length} files</span>
           </>}</div>
           {!!batch.length && <><div className="queue-head"><span>QUEUE</span><div>{isLabeled && <><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 0 })))}>All REAL</button><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 1 })))}>All FAKE</button></>}<button disabled={batchBusy} onClick={() => setBatch([])}>Clear</button></div></div>
-            <div className="queue-list" tabIndex="0">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div>{isLabeled && <select aria-label={'Ground truth label for ' + item.file.name} disabled={batchBusy} value={item.label ?? 0} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: Number(e.target.value) } : row))}><option value="0">REAL</option><option value="1">FAKE</option></select>}<span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
+            <div className="queue-list" tabIndex="0">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div><AudioPlayer file={item.file} compact />{isLabeled && <select aria-label={'Ground truth label for ' + item.file.name} disabled={batchBusy} value={item.label ?? 0} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: Number(e.target.value) } : row))}><option value="0">REAL</option><option value="1">FAKE</option></select>}<span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
             <div className="actions"><button className="primary" disabled={batchBusy || batch.every(row => row.status === 'done')} onClick={runBatch}>{busyTab === tab ? 'Processing batch...' : 'Run batch'}</button>{batchBusy && <button className="secondary-button" onClick={() => { stop.current = true; controller.current?.abort(); }}>Stop</button>}<span>{completed.length}/{batch.length} completed</span></div>
             </>}
           {batchError && <div className="notice">{batchError}</div>}</section>
