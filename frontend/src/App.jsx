@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import catalog from './analysisCatalog.json';
 import { batchMetrics } from './metrics';
+import { defaultTheme, themes } from './themes';
 import './App.css';
 
 const EXTENSIONS = new Set(['wav', 'mp3', 'm4a', 'webm', 'ogg', 'flac']);
@@ -69,6 +70,14 @@ function Result({ data }) {
 
 function App() {
   const [tab, setTab] = useState('single');
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('deepguard-theme');
+      return themes.some(item => item.id === saved) ? saved : defaultTheme;
+    } catch { return defaultTheme; }
+  });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef(null);
   const [singleFile, setSingleFile] = useState(null);
   const [singleResult, setSingleResult] = useState(null);
   const [singleError, setSingleError] = useState('');
@@ -78,6 +87,23 @@ function App() {
   const [batchError, setBatchError] = useState('');
   const controller = useRef(null);
   const stop = useRef(false);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem('deepguard-theme', theme); } catch { /* Storage may be unavailable. */ }
+  }, [theme]);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const closeOutside = event => { if (!settingsRef.current?.contains(event.target)) setSettingsOpen(false); };
+    const closeEscape = event => { if (event.key === 'Escape') setSettingsOpen(false); };
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', closeEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', closeEscape);
+    };
+  }, [settingsOpen]);
 
   const addFiles = files => {
     const list = Array.from(files || []);
@@ -120,7 +146,21 @@ function App() {
 
   return <div className="terminal-app">
     <main className="workspace">
-      <h1 className="site-title">DEEPGUARD</h1>
+      <div className="topbar">
+        <h1 className="site-title">DEEPGUARD</h1>
+        <div className="settings" ref={settingsRef}>
+          <button type="button" className="settings-toggle" aria-label="Pengaturan color scheme" aria-expanded={settingsOpen} aria-controls="theme-menu" onClick={() => setSettingsOpen(open => !open)}>
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9.7 3.4 10.2 2h3.6l.5 1.4 1 1.3 1.5.4 1.4-.3 2.5 2.5-.7 1.3-.2 1.5.8 1.3L22 12l-1.4.8-.8 1.3.2 1.5.7 1.3-2.5 2.5-1.4-.3-1.5.4-1 1.3-.5 1.4h-3.6l-.5-1.4-1-1.3-1.5-.4-1.4.3-2.5-2.5.7-1.3.2-1.5-.8-1.3L2 12l1.4-.8.8-1.3-.2-1.5-.7-1.3 2.5-2.5 1.4.3 1.5-.4 1-1.3Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          {settingsOpen && <div className="theme-menu" id="theme-menu" aria-label="Color scheme">
+            <div className="theme-menu-title">COLOR SCHEME</div>
+            {themes.map(item => <button type="button" key={item.id} className={'theme-option' + (theme === item.id ? ' selected' : '')} aria-pressed={theme === item.id} onClick={() => { setTheme(item.id); setSettingsOpen(false); }}>
+              <span className="theme-swatches" aria-hidden="true">{item.colors.map(color => <i key={color} style={{ backgroundColor: color }} />)}</span>
+              <span>{item.name}</span><span className="theme-check" aria-hidden="true">{theme === item.id ? '✓' : ''}</span>
+            </button>)}
+          </div>}
+        </div>
+      </div>
       <div className="tabs" role="tablist" aria-label="Mode pengujian"><button role="tab" aria-selected={tab === 'single'} className={tab === 'single' ? 'active' : ''} onClick={() => setTab('single')}>01 / Satu audio</button><button role="tab" aria-selected={tab === 'batch'} className={tab === 'batch' ? 'active' : ''} onClick={() => setTab('batch')}>02 / Batch</button></div>
       {tab === 'single' ? <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="single-controls">

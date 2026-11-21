@@ -1,0 +1,55 @@
+/* UI tokens adapted from the named terminal palettes. */
+:root, :root[data-theme='jellybeans'] {
+  --bg: #151515; --fg: #e8e8d3; --surface: #1c1c1c; --raised: #252334;
+  --border: #3b3b3b; --muted: #adadad; --accent: #597bc5; --cyan: #71b9f8;
+  --violet: #a037b0; --yellow: #d8ad4c; --red: #cf6a4c; --green: #99ad6a;
+}
+
+:root[data-theme='dracula'] {
+  --bg: #282a36; --fg: #f8f8f2; --surface: #303242; --raised: #44475a;
+  --border: #51556b; --muted: #b0b5d0; --accent: #bd93f9; --cyan: #8be9fd;
+  --violet: #ff79c6; --yellow: #f1fa8c; --red: #ff5555; --green: #50fa7b;
+}
+
+:root[data-theme='nord'] {
+  --bg: #2e3440; --fg: #eceff4; --surface: #3b4252; --raised: #434c5e;
+  --border: #4c566a; --muted: #c4ccd9; --accent: #81a1c1; --cyan: #88c0d0;
+  --violet: #b48ead; --yellow: #ebcb8b; --red: #bf616a; --green: #a3be8c;
+}
+
+:root[data-theme='gruvbox'] {
+  --bg: #282828; --fg: #ebdbb2; --surface: #32302f; --raised: #3c3836;
+  --border: #504945; --muted: #bdae93; --accent: #83a598; --cyan: #8ec07c;
+  --violet: #d3869b; --yellow: #fabd2f; --red: #fb4934; --green: #b8bb26;
+}
+
+:root[data-theme='solarized'] {
+  --bg: #002b36; --fg: #eee8d5; --surface: #073642; --raised: #124554;
+  --border: #586e75; --muted: #93a1a1; --accent: #268bd2; --cyan: #56b1a9;
+  --violet: #6c71c4; --yellow: #cba12e; --red: #dc322f; --green: #a6bb2a;
+}
+
+:root[data-theme='tokyo-night'] {
+  --bg: #1a1b26; --fg: #c0caf5; --surface: #222436; --raised: #292e42;
+  --border: #3b4261; --muted: #a9b1d6; --accent: #7aa2f7; --cyan: #7dcfff;
+  --violet: #bb9af7; --yellow: #e0af68; --red: #f7768e; --green: #9ece6a;
+}
+
+:root[data-theme='catppuccin'] {
+  --bg: #1e1e2e; --fg: #cdd6f4; --surface: #181825; --raised: #313244;
+  --border: #45475a; --muted: #bac2de; --accent: #89b4fa; --cyan: #89dceb;
+  --violet: #cba6f7; --yellow: #f9e2af; --red: #f38ba8; --green: #a6e3a1;
+}
+
+:root {
+  --glow: color-mix(in srgb, var(--violet) 15%, var(--bg));
+  --active-bg: color-mix(in srgb, var(--accent) 17%, var(--surface));
+  --hover-bg: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  --input-bg: color-mix(in srgb, var(--bg) 78%, var(--surface));
+  --soft-border: color-mix(in srgb, var(--border) 75%, var(--bg));
+  --head-fg: color-mix(in srgb, var(--violet) 35%, var(--fg));
+  --button-text: var(--bg);
+  --status-red-bg: color-mix(in srgb, var(--red) 15%, var(--bg));
+  --status-green-bg: color-mix(in srgb, var(--green) 15%, var(--bg));
+  --status-yellow-bg: color-mix(in srgb, var(--yellow) 15%, var(--bg));
+}
