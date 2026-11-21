@@ -1,3 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap');
-:root{font-family:'Geist Mono',monospace;color:#e6eee9;background:#0a0e0c;font-synthesis:none}
-*{box-sizing:border-box}html,body,#root{margin:0;min-height:100%}button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.45}::selection{background:#a5f3b3;color:#0a0e0c}
+:root {
+  font-family: 'Geist Mono', monospace;
+  color: #e8e8d3;
+  background: #151515;
+  font-synthesis: none;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: #597bc5 #1c1c1c; }
+html, body, #root { margin: 0; min-height: 100%; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+::selection { background: #597bc5; color: #fff; }
+
+/* Page, feature table, and batch queue scrollbars. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #1c1c1c; }
+::-webkit-scrollbar-thumb { border: 2px solid #1c1c1c; border-radius: 8px; background: #597bc5; }
+::-webkit-scrollbar-thumb:hover { background: #71b9f8; }
+::-webkit-scrollbar-corner { background: #1c1c1c; }
