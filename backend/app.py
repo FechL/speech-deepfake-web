@@ -182,6 +182,30 @@ async def detect_endpoint(
                 pass
 
 
+@app.post("/api/analyze")
+async def analyze_all_endpoint(file: UploadFile = File(...)):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Pilih berkas audio.")
+    extension = Path(file.filename).suffix.lower().lstrip(".")
+    if extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Format audio tidak didukung.")
+    blob = await file.read(MAX_BYTES + 1)
+    if not blob or len(blob) > MAX_BYTES:
+        raise HTTPException(status_code=413 if blob else 400, detail="Berkas kosong atau melebihi 25 MB.")
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{extension}") as temp:
+            temp.write(blob)
+            temp_path = temp.name
+        result = engine.analyze_all(temp_path, file.filename)
+        if result["status"] != "success":
+            raise HTTPException(status_code=422, detail=result["errors"])
+        return result
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
 # Mount static production UI from dist
 if DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=str(DIST_DIR), html=True), name="web")

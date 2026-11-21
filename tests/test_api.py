@@ -109,6 +109,25 @@ def test_detect_empty_file():
     assert res.status_code == 400
 
 
+def test_analyze_all_returns_research_features_and_all_models():
+    wav_bytes = generate_wav(seconds=3.0, freq=120.0)
+    with flask_app.test_client() as flask_client:
+        res = flask_client.post(
+            "/api/analyze",
+            data={"file": (io.BytesIO(wav_bytes), "complete.wav")},
+            content_type="multipart/form-data",
+        )
+    assert res.status_code == 200, res.get_data(as_text=True)
+    result = res.get_json()
+    ids = {group["id"] for group in result["featureGroups"]}
+    assert {"alvin_mfcc", "alvin_lfcc", "residual", "modulation", "glottal_g0", "glottal_g1", "glottal_g2"} <= ids
+    assert len(next(group for group in result["featureGroups"] if group["id"] == "residual")["values"]) == 15
+    assert len(next(group for group in result["featureGroups"] if group["id"] == "modulation")["values"]) == 7
+    predictions = {item["id"]: item for item in result["predictions"]}
+    assert "alvin_B4" in predictions and "alvin_E4c" in predictions and "fawwas_glottal_g3" in predictions
+    assert all(0 <= item["score"] <= 1 for item in predictions.values())
+
+
 def test_flask_server_endpoints():
     with flask_app.test_client() as flask_client:
         h = flask_client.get("/health")

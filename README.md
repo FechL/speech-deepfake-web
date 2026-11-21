@@ -1,6 +1,6 @@
 # DeepGuard AI — Forensic Voice Verification Web App
 
-Aplikasi web modern untuk verifikasi forensik audio dan klasifikasi deteksi speech deepfake. Antarmuka menggunakan **UI/UX DeepGuard** (Glassmorphism Cyberpunk) yang telah disetujui, terintegrasi penuh dengan dua mesin model AI utama:
+Aplikasi web untuk analisis audio dan deteksi speech deepfake. Antarmuka branch `aliy` memakai tema terminal dengan alur uji satu audio dan batch, terintegrasi dengan dua kelompok model penelitian:
 
 1. **Model Alvin B4 (XGBoost)**: Baseline spektral residual modulasi (280 fitur statistik MFCC & LFCC) untuk deteksi speech deepfake.
 2. **Model Fawwas (Glottal v8)**: Model beku hasil pipeline `forensic_reference_glottal_v8` (ASVspoof 2019 LA + ADDITIONAL) yang memakai fitur fonasi glotal G3 (44 fitur) dan fusi dengan MFCC/LFCC; classifier SVM / Random Forest / XGBoost.
@@ -42,7 +42,7 @@ npm run dev
 ```
 
 Buka `http://127.0.0.1:5173` pada browser Anda.
-Mode development Vite secara otomatis melakukan proxy permintaan `/detect` dan `/health` ke backend port 5001.
+Mode development Vite secara otomatis melakukan proxy permintaan `/api/analyze`, `/detect`, dan `/health` ke backend port 5001.
 
 ### 3. Kompilasi Ulang Frontend untuk Produksi
 
@@ -73,7 +73,7 @@ Preprocessing tiap model berada di paket sendiri dengan README masing-masing:
 
 Semua model sudah ada di repo sebagai berkas biasa (tanpa zip, tanpa Git LFS): cukup `git clone`. Alvin: 10 berkas `*_seed42.joblib` (B3 dan E4d dikompres joblib agar < 100 MB; prediksi identik). Fawwas: `backend/checkpoints/fawwas/glottal_v8/` berisi model beku seed 2026, konfigurasi ekstraktor, dan README; ubah seed dengan env `DEEPGUARD_FAWWAS_SEED` (hanya seed 2026 yang ada di repo). Arsip v6 lama tidak dipakai. Catatan: fitur glotal murni generalisasinya lemah pada data eksternal (AUC MLAAD ≈ 0,54; DF ≈ 0,58) — lihat `glottal_v8/README.md`.
 
-Kedua model bekerja secara mandiri. Varian model dipilih dari menu **Pengaturan** dan digunakan pada layar deteksi.
+Kedua keluarga model bekerja secara mandiri. Layar analisis baru menjalankan semua checkpoint yang tersedia dan menampilkan hasil per model.
 
 ### Referensi Threshold Model
 
@@ -98,24 +98,23 @@ Nilai threshold disimpan di dokumentasi ini sebagai referensi; nilai tersebut ti
 
 ---
 
-## 🎨 Fitur UI/UX (Sesuai Standar Web Disetujui)
+## Terminal analisis (branch `aliy`)
 
-- **Authentication Gate**: Halaman Masuk (Login) dan Pendaftaran (Register) dengan validasi akun dan penyimpanan lokal (`localStorage`).
-- **Shell Navigasi Responsif**: Sidebar kiri untuk desktop (>650px) dan Bottom Navigation Bar untuk mobile (<=650px).
-- **Tema Gelap & Terang**: Dukungan beralih tema Dark/Light mode instan melalui tombol pada header.
-- **Bento Grid Dashboard**: Kartu aksi "Mulai Deteksi" beranimasi scanner, kartu statistik total file, dan daftar 5 riwayat analisis terbaru.
-- **Metode Input Ganda**: Perekaman mikrofon langsung dengan visualizer gelombang dinamis real-time, atau unggah file audio (WAV, MP3, M4A, FLAC, WebM, OGG).
-- **Pemindai Forensik Interaktif**: Tampilan gelombang radar pemindaian, progress bar, dan konsol log elektronik real-time sesuai model yang dipilih.
-- **Laporan Forensik Lengkap**: Circular gauge meter persentase keyakinan, badge keamanan (AUTENTIK / TERINDIKASI DEEPFAKE), player gelombang audio, metadata teknis, dan ekspor ringkasan forensik `.txt`.
-- **Setelan Analis**: Konfigurasi ID Investigator dan slider sensitivitas threshold keputusan AI (0.05 – 0.95).
+- Tampilan ringkas bertema terminal memakai Geist Mono dengan judul **DEEPGUARD** di atas.
+- Dua tab langsung: **Satu audio** dan **Batch**. Format: WAV, MP3, M4A, FLAC, WebM, OGG; maksimum 25 MB per file.
+- `POST /api/analyze` menjalankan semua checkpoint Alvin dan Fawwas yang tersedia. Respons berisi prediksi per model, ambang keputusan beku, serta tabel nilai fitur MFCC/LFCC, residual LPC, modulasi, glotal G0/G1/G2, dan QC.
+- Jalur Alvin dan Fawwas diekstrak masing-masing satu kali per audio. Jika satu jalur gagal, hasil jalur yang berhasil tetap ditampilkan bersama alasan kegagalannya.
+- Pada **Satu audio**, pilihan model pada tabel mengubah keputusan dan confidence utama. Confidence adalah probabilitas kelas hasil model (`P(FAKE)` atau `1-P(FAKE)`), **bukan** kalibrasi kepastian forensik.
+- Pada **Batch**, file diproses berurutan dengan status per file, tombol berhenti, dan detail prediksi serta fitur per file. Label asli REAL/FAKE opsional; nama folder `REAL`/`FAKE` terdeteksi otomatis dan bisa diubah. Metrik per model (accuracy, precision, recall, F1, balanced accuracy, AUC, EER, confusion counts) dihitung hanya dari file yang memiliki label asli. Tanpa dua kelas referensi, AUC/EER ditampilkan sebagai tidak tersedia.
+- Batch berjalan di browser dan memakai endpoint analisis per file. Hasil batch berada dalam memori tab selama sesi halaman; endpoint ini tidak menambahkan file ke koleksi sampel Flask.
 
 ---
 
 ## 🧪 Pengujian Unit & Verifikasi
 
-Jalankan test suite backend untuk memvalidasi performa kedua model dan endpoint API:
+Jalankan test suite backend untuk memvalidasi kedua model dan endpoint API:
 
 ```powershell
 python -u run_tests.py
 ```
-Semua 6 pengujian (kesehatan mesin, metadata model, deteksi Model Alvin, deteksi Model Fawwas, validasi format, dan Flask client) dipastikan lulus (*PASS*).
+Metrik batch juga dapat diuji dengan `node tests/terminal_metrics.test.mjs`.

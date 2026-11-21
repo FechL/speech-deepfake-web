@@ -263,6 +263,30 @@ def detect_audio():
         ), 422
 
 
+@app.route("/api/analyze", methods=["POST"])
+def analyze_all_audio():
+    uploaded_file = request.files.get("file")
+    if uploaded_file is None or not uploaded_file.filename:
+        return jsonify(status="error", message="Pilih berkas audio."), 400
+    safe_name = secure_filename(uploaded_file.filename) or "audio.wav"
+    extension = Path(safe_name).suffix.lower().lstrip(".")
+    if extension not in ALLOWED_EXTENSIONS:
+        return jsonify(status="error", message="Format audio tidak didukung."), 400
+    target_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{extension}") as temp:
+            uploaded_file.save(temp)
+            target_path = temp.name
+        result = engine.analyze_all(target_path, safe_name)
+        return jsonify(result), 200 if result["status"] == "success" else 422
+    except Exception as exc:
+        app.logger.exception("Analisis lengkap gagal")
+        return jsonify(status="error", message=str(exc)), 422
+    finally:
+        if target_path and os.path.exists(target_path):
+            os.remove(target_path)
+
+
 @app.route("/api/samples", methods=["GET"])
 def get_samples():
     samples = load_samples_index()
@@ -434,4 +458,3 @@ if __name__ == "__main__":
     port = int(os.getenv("DEEPGUARD_PORT", 5001))
     print(f"[*] DeepGuard local API berjalan di http://127.0.0.1:{port}")
     app.run(host="127.0.0.1", port=port, debug=False)
-

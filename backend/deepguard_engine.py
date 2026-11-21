@@ -28,6 +28,7 @@ import numpy as np
 from .preprocessing.audio_loading import load_audio
 from .preprocessing.alvin import extract_alvin_features
 from .preprocessing.fawwas import FawwasGlottal, VARIANTS as FAWWAS_VARIANTS, resolve_variant as resolve_fawwas_variant
+from .preprocessing.fawwas import glottal_features as glottal_extractor
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -257,6 +258,109 @@ class DeepGuardEngine:
                 "checkpointThreshold": eer_threshold,
                 "engine": f"{alg_display} ({len(req_cols)} Fitur Spektral)",
             }
+
+    def analyze_all(self, audio_path: str, file_name: str = "audio.wav") -> Dict[str, Any]:
+        """Extract each research feature set once and score every available checkpoint.
+
+        One family can fail (for example, no eligible glottal window) without
+        discarding the other family's measurements and predictions.
+        """
+        import pandas as pd
+
+        audio, sample_rate = load_audio(audio_path)
+        duration = len(audio) / sample_rate
+        groups = []
+        predictions = []
+        errors = []
+
+        def add_group(group_id, title, feature_map, columns):
+            groups.append({
+                "id": group_id,
+                "title": title,
+                "values": [
+                    {"name": name, "value": float(feature_map[name]) if np.isfinite(feature_map.get(name, np.nan)) else None}
+                    for name in columns
+                ],
+            })
+
+        def add_prediction(model_id, label, model, cols, values, threshold, family):
+            frame = pd.DataFrame([{col: values.get(col, np.nan) for col in cols}], columns=cols)
+            probabilities = model.predict_proba(frame)[0]
+            classes = list(model.classes_)
+            score = float(probabilities[classes.index(1)])
+            is_fake = score >= threshold
+            predictions.append({
+                "id": model_id,
+                "name": label,
+                "family": family,
+                "score": score,
+                "threshold": float(threshold),
+                "prediction": "FAKE" if is_fake else "REAL",
+                "confidence": score if is_fake else 1.0 - score,
+                "feature_count": len(cols),
+            })
+
+        try:
+            alvin = extract_alvin_features(audio, sample_rate)
+            alvin_groups = [
+                ("alvin_mfcc", "MFCC · Alvin", [k for k in alvin if k.startswith("mfcc_")]),
+                ("alvin_lfcc", "LFCC · Alvin", [k for k in alvin if k.startswith("lfcc_")]),
+                ("residual", "Residual LPC", [k for k in alvin if k.startswith("res_")]),
+                ("modulation", "Spektrum modulasi", [k for k in alvin if k.startswith("mod_")]),
+            ]
+            for group_id, title, cols in alvin_groups:
+                add_group(group_id, title, alvin, cols)
+            for model_id in ("B0", "B1", "B2", "B3", "B4", "E4a", "E4b", "E4c", "E4d", "E4e"):
+                try:
+                    cp = self.get_alvin_checkpoint(model_id)
+                    add_prediction("alvin_" + model_id, "Alvin " + model_id, cp["model"], cp["features"], alvin,
+                                   float(cp["val_threshold"]), "alvin")
+                except Exception as exc:
+                    errors.append({"source": "Alvin " + model_id, "message": str(exc)})
+        except Exception as exc:
+            errors.append({"source": "Fitur Alvin", "message": str(exc)})
+
+        if self.fawwas:
+            try:
+                x = np.asarray(audio, dtype=float)
+                max_n = int(60 * sample_rate)
+                if len(x) > max_n:
+                    start = (len(x) - max_n) // 2
+                    x = x[start:start + max_n]
+                glottal = glottal_extractor.extract_audio_v4(x, sample_rate, self.fawwas.cfg)
+                if glottal.get("analysis_status") != "ok":
+                    raise ValueError("Tidak ada jendela suara aktif yang layak untuk ekstraksi glotal.")
+                for group_id, title, family in (
+                    ("glottal_g0", "Glotal G0 · Prosodi", "G0_prosody"),
+                    ("glottal_g1", "Glotal G1 · Perturbasi & HNR", "G1_perturb_hnr"),
+                    ("glottal_g2", "Glotal G2 · Harmonik", "G2_harmonic"),
+                    ("fawwas_mfcc", "MFCC · Fawwas", "MFCC"),
+                    ("fawwas_lfcc", "LFCC · Fawwas", "LFCC"),
+                ):
+                    add_group(group_id, title, glottal, glottal_extractor.FAMILIES_V4[family])
+                add_group("glottal_qc", "Kualitas pengukuran glotal", glottal,
+                          glottal_extractor.QC_STRICT_V4)
+                for variant, (key, label, _, _) in FAWWAS_VARIANTS.items():
+                    try:
+                        spec = self.fawwas.systems[key]
+                        add_prediction("fawwas_" + variant, "Fawwas " + label, spec["model"], spec["cols"],
+                                       glottal, float(spec["threshold"]), "fawwas")
+                    except Exception as exc:
+                        errors.append({"source": "Fawwas " + variant, "message": str(exc)})
+            except Exception as exc:
+                errors.append({"source": "Fitur Fawwas", "message": str(exc)})
+        else:
+            errors.append({"source": "Fitur Fawwas", "message": self.fawwas_error or "Checkpoint tidak tersedia."})
+
+        return {
+            "status": "success" if predictions else "error",
+            "fileName": file_name,
+            "durationSeconds": duration,
+            "sampleRate": sample_rate,
+            "featureGroups": groups,
+            "predictions": predictions,
+            "errors": errors,
+        }
 
     def get_health_status(self) -> Dict[str, Any]:
         return {
