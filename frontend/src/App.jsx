@@ -47,7 +47,7 @@ function SortHeader({ label, column, sort, onSort, title }) {
 function FeatureTable({ groups }) {
   const [groupId, setGroupId] = useState('all');
   const [query, setQuery] = useState('');
-  const [sort, selectSort] = useTableSort();
+  const [sort, selectSort] = useTableSort('group');
   const rows = groups.flatMap(group => groupId === 'all' || group.id === groupId
     ? group.values.filter(item => item.name.toLowerCase().includes(query.toLowerCase())).map(item => ({ ...item, group: group.title }))
     : []);
@@ -67,7 +67,7 @@ function FeatureTable({ groups }) {
 }
 
 function Predictions({ predictions }) {
-  const [sort, selectSort] = useTableSort();
+  const [sort, selectSort] = useTableSort('name');
   const sortedPredictions = sortRows(predictions, sort, (row, column) => row[column]);
   return <div className="table-scroll model-table"><table><thead><tr><SortHeader label="Model" column="name" sort={sort} onSort={selectSort} /><SortHeader label="Features" column="feature_count" sort={sort} onSort={selectSort} /><SortHeader label="P(fake)" column="score" sort={sort} onSort={selectSort} /><SortHeader label="Threshold" column="threshold" sort={sort} onSort={selectSort} /><SortHeader label="Decision" column="prediction" sort={sort} onSort={selectSort} /><SortHeader label="Confidence" column="confidence" sort={sort} onSort={selectSort} title="Model class probability; not calibrated as forensic certainty." /></tr></thead>
     <tbody>{sortedPredictions.map(p => <tr key={p.id}>
@@ -77,7 +77,7 @@ function Predictions({ predictions }) {
 }
 
 function BatchMetricsTable({ batch }) {
-  const [sort, selectSort] = useTableSort();
+  const [sort, selectSort] = useTableSort('name');
   const rows = modelRows.map(model => ({ model, metrics: batchMetrics(batch, model.id) }));
   const sortedRows = sortRows(rows, sort, (row, column) => {
     if (column === 'name') return row.model.name;

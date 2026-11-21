@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-export function useTableSort() {
-  const [sort, setSort] = useState({ key: null, direction: 'asc' });
+export function useTableSort(initialKey) {
+  const [sort, setSort] = useState({ key: initialKey, direction: 'asc' });
   const selectSort = key => setSort(current => ({
     key,
     direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
