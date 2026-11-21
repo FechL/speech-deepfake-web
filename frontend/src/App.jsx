@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import catalog from './analysisCatalog.json';
 import { batchMetrics } from './metrics';
 import { sortRows, useTableSort } from './tableSort';
@@ -6,6 +6,7 @@ import { defaultTheme, themes } from './themes';
 import './App.css';
 
 const EXTENSIONS = new Set(['wav', 'mp3', 'm4a', 'webm', 'ogg', 'flac']);
+const validAudio = file => EXTENSIONS.has(file.name.split('.').pop().toLowerCase()) && file.size > 0 && file.size <= 25 * 1024 * 1024;
 const fmt = value => value === null || value === undefined ? '—' : (value * 100).toFixed(1) + '%';
 const num = value => value === null || value === undefined || !Number.isFinite(value) ? '—' : Number(value).toFixed(4);
 const key = file => (file.webkitRelativePath || file.name) + ':' + file.size + ':' + file.lastModified;
@@ -126,6 +127,7 @@ function App() {
   const [singleResult, setSingleResult] = useState(null);
   const [singleError, setSingleError] = useState('');
   const [singleBusy, setSingleBusy] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const [batch, setBatch] = useState([]);
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchError, setBatchError] = useState('');
@@ -149,15 +151,50 @@ function App() {
     };
   }, [settingsOpen]);
 
-  const addFiles = files => {
+  const addFiles = useCallback(files => {
     const list = Array.from(files || []);
-    const allowed = list.filter(file => EXTENSIONS.has(file.name.split('.').pop().toLowerCase()) && file.size > 0 && file.size <= 25 * 1024 * 1024);
+    const allowed = list.filter(validAudio);
     setBatchError(list.length !== allowed.length ? (list.length - allowed.length) + ' files skipped: unsupported format, size, or empty file.' : '');
     setBatch(current => {
       const existing = new Set(current.map(row => row.id));
       return [...current, ...allowed.filter(file => !existing.has(key(file))).map(file => ({ id: key(file), file, label: inferredLabel(file), status: 'ready', result: null, error: '' }))];
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    const isFileDrag = event => Array.from(event.dataTransfer?.types || []).includes('Files');
+    const onDragEnter = event => { if (isFileDrag(event)) { event.preventDefault(); setDragActive(true); } };
+    const onDragOver = event => { if (isFileDrag(event)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDragActive(true); } };
+    const onDragLeave = event => { if (!event.relatedTarget) setDragActive(false); };
+    const onDrop = event => {
+      if (!isFileDrag(event)) return;
+      event.preventDefault();
+      setDragActive(false);
+      const files = Array.from(event.dataTransfer.files);
+      if (tab === 'batch') { addFiles(files); return; }
+      if (files.length !== 1) {
+        setSingleError('Drop one audio file in Single mode, or use Batch for multiple files.');
+        return;
+      }
+      if (!validAudio(files[0])) {
+        setSingleError('Unsupported format, empty file, or file exceeds 25 MB.');
+        return;
+      }
+      setSingleFile(files[0]);
+      setSingleResult(null);
+      setSingleError('');
+    };
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [tab, addFiles]);
   const runSingle = async () => {
     if (!singleFile) return;
     setSingleError(''); setSingleResult(null); setSingleBusy(true);
@@ -188,6 +225,7 @@ function App() {
   const completed = batch.filter(row => row.status === 'done');
 
   return <div className="terminal-app">
+    {dragActive && <div className="page-drop-overlay" aria-hidden="true"><span>DROP AUDIO {tab === 'single' ? 'FILE' : 'FILES'} ANYWHERE</span></div>}
     <main className="workspace">
       <div className="topbar">
         <h1 className="site-title">DEEPGUARD</h1>
@@ -207,12 +245,12 @@ function App() {
       <div className="tabs" role="tablist" aria-label="Analysis mode"><button role="tab" aria-selected={tab === 'single'} className={tab === 'single' ? 'active' : ''} onClick={() => setTab('single')}>01 / Single</button><button role="tab" aria-selected={tab === 'batch'} className={tab === 'batch' ? 'active' : ''} onClick={() => setTab('batch')}>02 / Batch</button></div>
       {tab === 'single' ? <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="single-controls">
-          <label className="dropzone"><input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); setSingleError(''); }} /><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>{singleFile?.name || 'Choose audio file'}</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB</small></span></label>
+          <label className="dropzone"><input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); setSingleError(''); }} /><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>{singleFile?.name || 'Choose audio file'}</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB · drop anywhere</small></span></label>
           <button className="primary" disabled={!singleFile || singleBusy} onClick={runSingle}>{singleBusy ? 'Analyzing...' : 'Analyze'}</button></div>{singleError && <div className="notice error">{singleError}</div>}</section>
         <Result data={singleResult} />
       </div> : <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="batch-import"><label className="import-button">Choose files<input type="file" multiple accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} /></label><label className="import-button secondary">Choose REAL/FAKE folder<input type="file" multiple webkitdirectory="" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} /></label><span>{batch.length} files</span></div>
-          <p className="hint">Optional labels · REAL/FAKE folders labeled automatically</p>
+          <p className="hint">Drop files anywhere · optional labels · REAL/FAKE folders labeled automatically</p>
           {!!batch.length && <><div className="queue-head"><span>QUEUE</span><div><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 0 })))}>All REAL</button><button disabled={batchBusy} onClick={() => setBatch(rows => rows.map(row => ({ ...row, label: 1 })))}>All FAKE</button><button disabled={batchBusy} onClick={() => setBatch([])}>Clear</button></div></div>
             <div className="queue-list">{batch.map(item => <div className="queue-item" key={item.id}><div className="queue-name"><strong>{item.file.name}</strong><small>{item.status === 'error' ? item.error : item.status === 'done' ? item.result.predictions.length + ' models · ' + item.result.featureGroups.length + ' feature groups' : item.status === 'running' ? 'Analyzing...' : (item.file.size / 1048576).toFixed(2) + ' MB'}</small></div><select aria-label={'Ground truth label for ' + item.file.name} value={item.label ?? ''} onChange={e => setBatch(rows => rows.map(row => row.id === item.id ? { ...row, label: e.target.value === '' ? null : Number(e.target.value) } : row))}><option value="">Unlabeled</option><option value="0">REAL</option><option value="1">FAKE</option></select><span className={'tag ' + (item.status === 'error' ? 'fake' : item.status === 'done' ? 'real' : '')}>{item.status.toUpperCase()}</span></div>)}</div>
             <div className="actions"><button className="primary" disabled={batchBusy || batch.every(row => row.status === 'done')} onClick={runBatch}>{batchBusy ? 'Processing batch...' : 'Run batch'}</button>{batchBusy && <button className="secondary-button" onClick={() => { stop.current = true; controller.current?.abort(); }}>Stop</button>}<span>{completed.length}/{batch.length} completed</span></div></>}
