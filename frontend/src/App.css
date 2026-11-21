@@ -36,12 +36,12 @@
 .single-controls, .batch-import, .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .single-controls { flex-wrap: nowrap; }
 .single-controls > .import-button { position: relative; cursor: pointer; }
-.dropzone { display: flex; flex: 1; align-items: center; gap: 13px; min-width: 0; min-height: 42px; padding: 5px 13px; border: 1px dashed var(--accent); background: var(--input-bg); }
+.dropzone { display: flex; flex: 1; align-items: center; gap: 13px; min-width: 0; height: 42px; padding: 4px 13px; overflow: hidden; border: 1px dashed var(--accent); background: var(--input-bg); }
 .import-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.drop-icon { flex: none; color: var(--violet); font-size: 21px; }
-.file-choice { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.file-choice strong { overflow: hidden; color: var(--fg); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.file-choice small { color: var(--muted); font-size: 11px; }
+.drop-icon { flex: none; color: var(--violet); font-size: 21px; line-height: 1; }
+.file-choice { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.file-choice strong { overflow: hidden; color: var(--fg); font-size: 13px; font-weight: 600; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.file-choice small { overflow: hidden; color: var(--muted); font-size: 11px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .primary, .import-button, .secondary-button { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 10px 15px; border: 1px solid var(--yellow); border-radius: 3px; background: var(--yellow); color: var(--bg); font-size: 13px; font-weight: 500; white-space: nowrap; }
 .primary:hover, .import-button:hover { border-color: var(--yellow); background: var(--yellow); }
 .secondary-button, .import-button.secondary { border-color: var(--accent); background: transparent; color: var(--cyan); }
@@ -80,13 +80,13 @@
 .queue-head button { padding: 0; border: 0; background: none; color: var(--cyan); font-size: 11px; }
 .queue-head button:hover { text-decoration: underline; }
 .queue-list { max-height: min(240px, 36vh); overflow-y: auto; overflow-x: hidden; margin-top: 8px; border: 1px solid var(--border); }
-.queue-item { display: flex; align-items: center; gap: 11px; padding: 8px 11px; border-bottom: 1px solid var(--soft-border); }
+.queue-item { display: flex; align-items: center; gap: 11px; min-height: 48px; padding: 8px 11px; border-bottom: 1px solid var(--soft-border); }
 .queue-item:last-child { border-bottom: 0; }
 .queue-name { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
 .queue-name strong, .queue-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.queue-name strong { font-size: 12px; }
-.queue-name small { color: var(--muted); font-size: 11px; }
-.queue-item select { min-width: 118px; }
+.queue-name strong { font-size: 12px; line-height: 1.2; }
+.queue-name small { color: var(--muted); font-size: 11px; line-height: 1.2; }
+.queue-item select { width: 88px; min-width: 88px; height: 26px; min-height: 26px; padding: 2px 5px; font-size: 11px; line-height: 1.2; }
 .actions { margin-top: 10px; }
 .file-detail { margin-bottom: 9px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); }
 .file-detail summary { display: flex; justify-content: space-between; gap: 12px; padding: 11px 14px; color: var(--fg); cursor: pointer; font-size: 12px; font-weight: 600; }
@@ -100,14 +100,13 @@
   .topbar { margin-bottom: 17px; }
   .tabs { overflow-x: auto; }
   .tabs button { flex: none; padding: 10px 8px; font-size: 11px; white-space: nowrap; }
-  .single-controls { align-items: stretch; flex-direction: column; }
-  .dropzone { width: 100%; }
-  .single-controls .primary { width: 100%; }
+  .single-controls > .import-button { padding-inline: 9px; font-size: 11px; }
+  .single-controls .primary { padding-inline: 10px; font-size: 11px; }
+  .file-choice small { display: none; }
   .feature-tools { flex-direction: column; }
   .feature-tools input, .feature-tools select { width: 100%; max-width: none; }
-  .queue-item { flex-wrap: wrap; }
-  .queue-name { flex-basis: 100%; }
-  .queue-item select { flex: 1; }
+  .queue-item { gap: 6px; padding-inline: 8px; }
+  .queue-item select { width: 76px; min-width: 76px; }
   .file-detail summary { flex-direction: column; }
 }
 

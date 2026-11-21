@@ -284,7 +284,7 @@ function App() {
         <section className="panel input-panel"><div className="single-controls">
           <label className="import-button">Choose file<input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); setSingleError(''); }} /></label>
           <div className="dropzone"><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>{singleFile?.name || 'Drop audio here'}</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB</small></span></div>
-          <button className="primary" disabled={!singleFile || singleBusy} onClick={runSingle}>{singleBusy ? 'Analyzing...' : 'Analyze'}</button></div>{singleError && <div className="notice error">{singleError}</div>}</section>
+          {singleFile && <button className="primary" disabled={singleBusy} onClick={runSingle}>{singleBusy ? 'Running...' : 'Run'}</button>}</div>{singleError && <div className="notice error">{singleError}</div>}</section>
         <Result data={singleResult} />
       </div> : <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="batch-import">
