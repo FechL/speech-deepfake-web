@@ -104,7 +104,7 @@ Nilai threshold disimpan di dokumentasi ini sebagai referensi; nilai tersebut ti
 - Dua tab langsung: **Satu audio** dan **Batch**. Format: WAV, MP3, M4A, FLAC, WebM, OGG; maksimum 25 MB per file.
 - `POST /api/analyze` menjalankan semua checkpoint Alvin dan Fawwas yang tersedia. Respons berisi prediksi per model, ambang keputusan beku, serta tabel nilai fitur MFCC/LFCC, residual LPC, modulasi, glotal G0/G1/G2, dan QC.
 - Jalur Alvin dan Fawwas diekstrak masing-masing satu kali per audio. Jika satu jalur gagal, hasil jalur yang berhasil tetap ditampilkan bersama alasan kegagalannya.
-- Pada **Satu audio**, pilihan model pada tabel mengubah keputusan dan confidence utama. Confidence adalah probabilitas kelas hasil model (`P(FAKE)` atau `1-P(FAKE)`), **bukan** kalibrasi kepastian forensik.
+- Pada **Satu audio**, keputusan dan confidence tiap model ditampilkan langsung dalam tabel. Confidence adalah probabilitas kelas hasil model (`P(FAKE)` atau `1-P(FAKE)`), **bukan** kalibrasi kepastian forensik.
 - Pada **Batch**, file diproses berurutan dengan status per file, tombol berhenti, dan detail prediksi serta fitur per file. Label asli REAL/FAKE opsional; nama folder `REAL`/`FAKE` terdeteksi otomatis dan bisa diubah. Metrik per model (accuracy, precision, recall, F1, balanced accuracy, AUC, EER, confusion counts) dihitung hanya dari file yang memiliki label asli. Tanpa dua kelas referensi, AUC/EER ditampilkan sebagai tidak tersedia.
 - Batch berjalan di browser dan memakai endpoint analisis per file. Hasil batch berada dalam memori tab selama sesi halaman; endpoint ini tidak menambahkan file ke koleksi sampel Flask.
 
