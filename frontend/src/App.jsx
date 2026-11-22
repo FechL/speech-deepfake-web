@@ -3,7 +3,7 @@ import catalog from './analysisCatalog.json';
 import { batchMetrics } from './metrics';
 import { researchConfigs } from './researchConfigs';
 import { sortRows, useTableSort } from './tableSort';
-import { defaultTheme, themes } from './themes';
+import { defaultFont, defaultFontSize, defaultTheme, fonts, fontSizes, themes } from './themes';
 import readmeSource from '../../README.md?raw';
 import './App.css';
 
@@ -143,8 +143,8 @@ function Result({ data }) {
   const groups = featureGroups.map(group => englishGroup(reportedGroups.get(group.id) || group));
   return <div className="result-stack">
     {data?.errors?.length > 0 && <div className="notice">{data.errors.map((error, i) => <div key={i}>{error.source}: {error.message}</div>)}</div>}
-    <section className="panel"><Predictions predictions={predictions} /></section>
-    <section className="panel"><FeatureTable groups={groups} /></section>
+    <section className="panel"><div className="panel-head"><h2>MODEL PREDICTIONS</h2></div><Predictions predictions={predictions} /></section>
+    <section className="panel"><div className="panel-head"><h2>EXTRACTED FEATURES</h2></div><FeatureTable groups={groups} /></section>
   </div>;
 }
 
@@ -215,24 +215,43 @@ function Readme() {
   const titleOf = section => section.match(/^## ([^\n]+)/)?.[1];
   const main = sections.filter(section => !sidebarTitles.includes(titleOf(section)));
   return <div className="readme-layout" role="tabpanel" aria-label="README.md">
-    <article className="panel readme-panel markdown-document"><MarkdownContent source={main.join('\n\n')} /></article>
     <aside className="readme-sidebar" aria-label="Project details">
       {sidebarTitles.map(title => {
         const section = sections.find(item => titleOf(item) === title);
-        return section && <section className="panel readme-panel markdown-document" key={title}><MarkdownContent source={section} /></section>;
+        return section && <section className="panel readme-side-panel markdown-document" key={title}>
+          <div className="panel-head"><h2>{title.toUpperCase()}</h2></div>
+          <div className="readme-side-body"><MarkdownContent source={section.replace(/^## [^\n]+\n?/, '')} /></div>
+        </section>;
       })}
     </aside>
+    <article className="panel readme-article markdown-document"><MarkdownContent source={main.join('\n\n')} /></article>
   </div>;
 }
 
-function Configuration({ theme, onThemeChange }) {
+function Configuration({ theme, onThemeChange, font, onFontChange, fontSize, onFontSizeChange }) {
+  const themeButtons = mode => themes.filter(item => item.mode === mode).map(item => <button type="button" key={item.id} className={'theme-option' + (theme === item.id ? ' selected' : '')} aria-pressed={theme === item.id} onClick={() => onThemeChange(item.id)}>
+    <span className="theme-swatches" aria-hidden="true">{item.colors.map(color => <i key={color} style={{ backgroundColor: color }} />)}</span>
+    <span>{item.name}</span><span className="theme-check" aria-hidden="true">{theme === item.id ? '✓' : ''}</span>
+  </button>);
   return <div className="mode-content" role="tabpanel" aria-label="Configuration">
     <section className="panel readme-panel">
       <h2>Color scheme</h2>
       <p>Select a terminal palette. Your choice is saved in this browser.</p>
-      <div className="theme-grid">{themes.map(item => <button type="button" key={item.id} className={'theme-option' + (theme === item.id ? ' selected' : '')} aria-pressed={theme === item.id} onClick={() => onThemeChange(item.id)}>
-        <span className="theme-swatches" aria-hidden="true">{item.colors.map(color => <i key={color} style={{ backgroundColor: color }} />)}</span>
-        <span>{item.name}</span><span className="theme-check" aria-hidden="true">{theme === item.id ? '✓' : ''}</span>
+      <h3 className="palette-group-title">Dark</h3><div className="theme-grid">{themeButtons('dark')}</div>
+      <h3 className="palette-group-title light-group">Light</h3><div className="theme-grid">{themeButtons('light')}</div>
+    </section>
+    <section className="panel readme-panel">
+      <h2>Font family</h2>
+      <p>Choose a font for the interface and reading content. Your choice is saved in this browser.</p>
+      <div className="font-grid">{fonts.map(item => <button type="button" key={item.id} data-font={item.id} className={'font-option' + (font === item.id ? ' selected' : '')} aria-pressed={font === item.id} onClick={() => onFontChange(item.id)}>
+        <span>{item.name}</span><span className="font-sample" aria-hidden="true">Aa 0123</span><span className="theme-check" aria-hidden="true">{font === item.id ? '✓' : ''}</span>
+      </button>)}</div>
+    </section>
+    <section className="panel readme-panel">
+      <h2>Font size</h2>
+      <p>Adjust the text size across the interface and articles. Your choice is saved in this browser.</p>
+      <div className="size-grid">{fontSizes.map(item => <button type="button" key={item.value} className={'size-option' + (fontSize === item.value ? ' selected' : '')} aria-pressed={fontSize === item.value} onClick={() => onFontSizeChange(item.value)}>
+        <span>{item.name}</span><span className="size-sample" aria-hidden="true">Aa · {item.value}%</span><span className="theme-check" aria-hidden="true">{fontSize === item.value ? '✓' : ''}</span>
       </button>)}</div>
     </section>
     <section className="panel readme-panel">
@@ -270,6 +289,18 @@ function App() {
       return themes.some(item => item.id === saved) ? saved : defaultTheme;
     } catch { return defaultTheme; }
   });
+  const [font, setFont] = useState(() => {
+    try {
+      const saved = localStorage.getItem('deepguard-font');
+      return fonts.some(item => item.id === saved) ? saved : defaultFont;
+    } catch { return defaultFont; }
+  });
+  const [fontSize, setFontSize] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('deepguard-font-size'));
+      return fontSizes.some(item => item.value === saved) ? saved : defaultFontSize;
+    } catch { return defaultFontSize; }
+  });
   const [singleFile, setSingleFile] = useState(null);
   const [singleResult, setSingleResult] = useState(null);
   const [singleBusy, setSingleBusy] = useState(false);
@@ -298,6 +329,14 @@ function App() {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem('deepguard-theme', theme); } catch { /* Storage may be unavailable. */ }
   }, [theme]);
+  useEffect(() => {
+    document.documentElement.dataset.font = font;
+    try { localStorage.setItem('deepguard-font', font); } catch { /* Storage may be unavailable. */ }
+  }, [font]);
+  useEffect(() => {
+    document.documentElement.dataset.fontSize = String(fontSize);
+    try { localStorage.setItem('deepguard-font-size', String(fontSize)); } catch { /* Storage may be unavailable. */ }
+  }, [fontSize]);
 
   const addFiles = useCallback((files, labeled, forcedLabel = null) => {
     const list = Array.from(files || []);
@@ -408,7 +447,7 @@ function App() {
       </nav>
       <div className={'mobile-page' + (mobileMenuOpen ? ' mobile-hidden' : '')}>
       <div className="mobile-page-nav"><button type="button" onClick={() => { setMobileMenuOpen(true); setDragActive(false); setDragSide(null); window.scrollTo(0, 0); }}>← Menu</button><span>{tabItems.find(item => item.id === tab)?.label}</span></div>
-      {tab === 'readme' ? <Readme /> : tab === 'configuration' ? <Configuration theme={theme} onThemeChange={setTheme} /> : tab === 'single' ? <div className="mode-content" role="tabpanel">
+      {tab === 'readme' ? <Readme /> : tab === 'configuration' ? <Configuration theme={theme} onThemeChange={setTheme} font={font} onFontChange={setFont} fontSize={fontSize} onFontSizeChange={setFontSize} /> : tab === 'single' ? <div className="mode-content" role="tabpanel">
         <section className="panel input-panel"><div className="single-controls">
           <label className="import-button">Choose file<input type="file" accept=".wav,.mp3,.m4a,.webm,.ogg,.flac" onChange={e => { setSingleFile(e.target.files?.[0] || null); setSingleResult(null); e.target.value = ''; }} /></label>
           {singleFile ? <div className="single-file"><div className="queue-name"><strong title={singleFile.name}>{singleFile.name}</strong><small>{(singleFile.size / 1048576).toFixed(2)} MB</small></div><AudioPlayer key={key(singleFile)} file={singleFile} /></div> : <div className="dropzone"><span className="drop-icon">[ + ]</span><span className="file-choice"><strong>Drop audio here</strong><small>WAV · MP3 · M4A · WEBM · OGG · FLAC · max. 25 MB</small></span></div>}

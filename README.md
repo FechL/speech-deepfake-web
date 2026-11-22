@@ -21,7 +21,7 @@ The web app tests ten saved classifiers: spectral baselines B0–B4 and evidence
 - **01 / Single:** Choose or drop one audio file, play it back, and select Run. The model table shows P(fake), decision threshold, REAL/FAKE decision, and confidence; feature tables show the extracted values.
 - **02 / Batch Unlabeled:** Add several files to review prediction counts, average scores, and per-file model and feature results.
 - **03 / Batch Labeled:** Add REAL and FAKE files separately. The batch table reports accuracy, precision, recall, F1, balanced accuracy, AUC, EER, and confusion counts for each model.
-- **99 / Configuration:** Choose a terminal color scheme and inspect read-only parameter summaries from both research repositories. The color selection is saved in the browser.
+- **99 / Configuration:** Choose a dark or light terminal color scheme, font family, and text size, then inspect read-only parameter summaries from both research repositories. Appearance choices are saved in the browser.
 
 Supported files: WAV, MP3, M4A, WEBM, OGG, and FLAC, up to 25 MB per file and 50 files per batch. File drag and drop works across the analysis page. A batch can be stopped while it is running; its completed results remain visible in the current browser session.
 
